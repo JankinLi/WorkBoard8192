@@ -749,7 +749,7 @@ void StartMainRecvTask(void *argument)
 			uint32_t timeout_value = 1 * freq;
 			if (diff > timeout_value){
 				HAL_GPIO_WritePin(GPIOB, GPIO_PIN_9, GPIO_PIN_RESET);
-				PutErrorCode(ErrorQueueHandle,8);
+				//PutErrorCode(ErrorQueueHandle,8);
 				g_motor_1 = 2;
 				g_motor_1_start = osKernelGetSysTimerCount();
 			}
@@ -762,7 +762,7 @@ void StartMainRecvTask(void *argument)
 			uint32_t timeout_value = 1 * freq;
 			if (diff > timeout_value){
 				HAL_GPIO_WritePin(GPIOB, GPIO_PIN_9, GPIO_PIN_SET);
-				PutErrorCode(ErrorQueueHandle,9);
+				//PutErrorCode(ErrorQueueHandle,9);
 				g_motor_1 = 1;
 				g_motor_1_start = osKernelGetSysTimerCount();
 			}
