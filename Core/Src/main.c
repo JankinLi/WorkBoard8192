@@ -405,6 +405,11 @@ uint32_t g_motor_1_start = 0;
 uint8_t g_motor_2 = 0;
 uint32_t g_motor_2_start = 0;
 
+//Fan
+uint8_t g_fan_1 = 0;
+uint32_t g_fan_1_start = 0;
+uint8_t g_fan_1_value = 0x01;
+
 /* USER CODE END 0 */
 
 /**
@@ -677,9 +682,19 @@ static void MX_GPIO_Init(void)
   __HAL_RCC_GPIOF_CLK_ENABLE();
   __HAL_RCC_GPIOA_CLK_ENABLE();
   __HAL_RCC_GPIOB_CLK_ENABLE();
+  __HAL_RCC_GPIOD_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, GPIO_PIN_RESET);
+
+  /*Configure GPIO pin Output Level */
+  HAL_GPIO_WritePin(GPIOB, GPIO_PIN_15|GPIO_PIN_4|GPIO_PIN_5, GPIO_PIN_SET);
+
+  /*Configure GPIO pin Output Level */
+  HAL_GPIO_WritePin(GPIOC, GPIO_PIN_6|GPIO_PIN_12, GPIO_PIN_SET);
+
+  /*Configure GPIO pin Output Level */
+  HAL_GPIO_WritePin(GPIOD, GPIO_PIN_2, GPIO_PIN_SET);
 
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(GPIOB, GPIO_PIN_7|GPIO_PIN_9, GPIO_PIN_RESET);
@@ -697,12 +712,28 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(LD2_GPIO_Port, &GPIO_InitStruct);
 
-  /*Configure GPIO pins : PB7 PB9 */
-  GPIO_InitStruct.Pin = GPIO_PIN_7|GPIO_PIN_9;
+  /*Configure GPIO pins : PB15 PB4 PB5 PB7
+                           PB9 */
+  GPIO_InitStruct.Pin = GPIO_PIN_15|GPIO_PIN_4|GPIO_PIN_5|GPIO_PIN_7
+                          |GPIO_PIN_9;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
+
+  /*Configure GPIO pins : PC6 PC12 */
+  GPIO_InitStruct.Pin = GPIO_PIN_6|GPIO_PIN_12;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+  HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
+
+  /*Configure GPIO pin : PD2 */
+  GPIO_InitStruct.Pin = GPIO_PIN_2;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+  HAL_GPIO_Init(GPIOD, &GPIO_InitStruct);
 
   /* EXTI interrupt init*/
   HAL_NVIC_SetPriority(EXTI15_10_IRQn, 5, 0);
@@ -791,6 +822,32 @@ void StartMainRecvTask(void *argument)
 				g_motor_2_start = osKernelGetSysTimerCount();
 			}
 		}
+
+		if (g_fan_1 == 1){
+			uint32_t tick;
+			tick = osKernelGetSysTimerCount();
+			uint32_t diff = tick - g_fan_1_start;
+			uint32_t freq = osKernelGetSysTimerFreq();
+			uint32_t timeout_value = 0.05 * g_fan_1_value * freq;
+			if (diff > timeout_value){
+				HAL_GPIO_WritePin(GPIOB, GPIO_PIN_5, GPIO_PIN_SET);
+				g_fan_1 = 2;
+				g_fan_1_start = osKernelGetSysTimerCount();
+				//PutErrorCode(ErrorQueueHandle,8);
+			}
+		}
+		else if(g_fan_1 == 2){
+			uint32_t tick;
+			tick = osKernelGetSysTimerCount();
+			uint32_t diff = tick - g_fan_1_start;
+			uint32_t freq = osKernelGetSysTimerFreq();
+			uint32_t timeout_value = 0.05 *(0x14 - g_fan_1_value) * freq;
+			if (diff > timeout_value){
+				HAL_GPIO_WritePin(GPIOB, GPIO_PIN_5, GPIO_PIN_RESET);
+				g_fan_1 = 1;
+				g_fan_1_start = osKernelGetSysTimerCount();
+			}
+		}
 		osDelay(1);
 	}
   /* USER CODE END 5 */
@@ -873,6 +930,49 @@ void StartWorkTask(void *argument)
 						else{
 							PutErrorCode(ErrorQueueHandle,0x05);
 						}
+					}
+					else{
+						PutErrorCode(ErrorQueueHandle,0x03);
+					}
+				}
+				else if(data_ptr[0] == 0x07){
+					if(data_ptr[1] == 0x01 ){
+						char *len_ptr = data_ptr + 2;
+						int len_value = compute_len(len_ptr);
+						char * data_ptr = len_ptr + 4;
+						if(len_value == 2){
+							uint8_t value_1 = data_ptr[0];
+							uint8_t value_2 = data_ptr[1];
+							if ( (value_1 == 0x01) && (value_2 < 0x01 || value_2 > 0x14)){
+								PutErrorCode(ErrorQueueHandle,0x08);
+							}
+							else{
+								if (value_1 == 0x01){
+									g_fan_1 = 1;
+									g_fan_1_value = value_2;
+									g_fan_1_start = osKernelGetSysTimerCount();
+									HAL_GPIO_WritePin(GPIOB, GPIO_PIN_4, GPIO_PIN_RESET);
+									HAL_GPIO_WritePin(GPIOB, GPIO_PIN_5, GPIO_PIN_RESET);
+								}
+								else if(value_1 == 0x02){
+									g_fan_1 = 0;
+									HAL_GPIO_WritePin(GPIOB, GPIO_PIN_4, GPIO_PIN_SET);
+									HAL_GPIO_WritePin(GPIOB, GPIO_PIN_5, GPIO_PIN_SET);
+								}
+							}
+						}
+						else{
+							PutErrorCode(ErrorQueueHandle,0x05);
+						}
+					}
+					else if(data_ptr[1] == 0x02 ){
+
+					}
+					else if(data_ptr[1] == 0x03 ){
+
+					}
+					else if(data_ptr[1] == 0x04 ){
+
 					}
 					else{
 						PutErrorCode(ErrorQueueHandle,0x03);
