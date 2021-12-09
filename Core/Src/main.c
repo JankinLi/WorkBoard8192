@@ -43,7 +43,11 @@
 
 /* Private variables ---------------------------------------------------------*/
 UART_HandleTypeDef hlpuart1;
-UART_HandleTypeDef huart1;
+UART_HandleTypeDef huart4;
+
+TIM_HandleTypeDef htim1;
+TIM_HandleTypeDef htim3;
+TIM_HandleTypeDef htim8;
 
 /* Definitions for MainRecvTask */
 osThreadId_t MainRecvTaskHandle;
@@ -113,7 +117,10 @@ const osMutexAttr_t OutMutex_attributes = {
 void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
 static void MX_LPUART1_UART_Init(void);
-static void MX_USART1_UART_Init(void);
+static void MX_UART4_Init(void);
+static void MX_TIM3_Init(void);
+static void MX_TIM1_Init(void);
+static void MX_TIM8_Init(void);
 void StartMainRecvTask(void *argument);
 void StartWorkTask(void *argument);
 void StartOutTask(void *argument);
@@ -275,7 +282,7 @@ void set_down_head_it(){
 	down_head_flag = 1;
 	down_body_flag = 0;
 	p_down_current = down_body_buf;
-	HAL_UART_Receive_IT(&huart1,(uint8_t*)down_head_buf,2);
+	HAL_UART_Receive_IT(&huart4,(uint8_t*)down_head_buf,2);
 }
 
 void move_next_down_write_index(){
@@ -296,7 +303,7 @@ void receive_down_head(){
 	down_head_flag = 0;
 	down_body_flag = 1;
 	p_down_current = down_body_buf;
-	HAL_UART_Receive_IT(&huart1,(uint8_t*)p_down_current, 1);
+	HAL_UART_Receive_IT(&huart4,(uint8_t*)p_down_current, 1);
 }
 
 void receive_down_data_part(){
@@ -324,7 +331,7 @@ void receive_down_data_part(){
 	}
 
 	p_down_current = p_down_current + 1;
-	HAL_UART_Receive_IT(&huart1,(uint8_t*)p_down_current, 1);
+	HAL_UART_Receive_IT(&huart4,(uint8_t*)p_down_current, 1);
 }
 
 
@@ -343,7 +350,7 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 		return;
 	}
 
-	if (huart->Instance == USART1 ){
+	if (huart->Instance == UART4 ){
 		if(1 == down_body_flag){
 			receive_down_data_part();
 			return;
@@ -406,9 +413,13 @@ uint8_t g_motor_2 = 0;
 uint32_t g_motor_2_start = 0;
 
 //Fan
-uint8_t g_fan_1 = 0;
-uint32_t g_fan_1_start = 0;
-uint8_t g_fan_1_value = 0x01;
+//uint8_t g_fan_1 = 0;
+//uint32_t g_fan_1_start = 0;
+
+uint8_t g_fan_1_value = 0x00;
+uint8_t g_fan_2_value = 0x00;
+uint8_t g_fan_3_value = 0x00;
+uint8_t g_fan_4_value = 0x00;
 
 /* USER CODE END 0 */
 
@@ -441,9 +452,14 @@ int main(void)
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
   MX_LPUART1_UART_Init();
-  MX_USART1_UART_Init();
+  MX_UART4_Init();
+  MX_TIM3_Init();
+  MX_TIM1_Init();
+  MX_TIM8_Init();
   /* USER CODE BEGIN 2 */
-
+  HAL_TIM_Base_Start_IT(&htim1);
+  HAL_TIM_Base_Start_IT(&htim3);
+  HAL_TIM_Base_Start_IT(&htim8);
   /* USER CODE END 2 */
 
   /* Init scheduler */
@@ -564,8 +580,8 @@ void SystemClock_Config(void)
   }
   /** Initializes the peripherals clocks
   */
-  PeriphClkInit.PeriphClockSelection = RCC_PERIPHCLK_USART1|RCC_PERIPHCLK_LPUART1;
-  PeriphClkInit.Usart1ClockSelection = RCC_USART1CLKSOURCE_PCLK2;
+  PeriphClkInit.PeriphClockSelection = RCC_PERIPHCLK_UART4|RCC_PERIPHCLK_LPUART1;
+  PeriphClkInit.Uart4ClockSelection = RCC_UART4CLKSOURCE_PCLK1;
   PeriphClkInit.Lpuart1ClockSelection = RCC_LPUART1CLKSOURCE_PCLK1;
   if (HAL_RCCEx_PeriphCLKConfig(&PeriphClkInit) != HAL_OK)
   {
@@ -621,50 +637,263 @@ static void MX_LPUART1_UART_Init(void)
 }
 
 /**
-  * @brief USART1 Initialization Function
+  * @brief UART4 Initialization Function
   * @param None
   * @retval None
   */
-static void MX_USART1_UART_Init(void)
+static void MX_UART4_Init(void)
 {
 
-  /* USER CODE BEGIN USART1_Init 0 */
+  /* USER CODE BEGIN UART4_Init 0 */
 
-  /* USER CODE END USART1_Init 0 */
+  /* USER CODE END UART4_Init 0 */
 
-  /* USER CODE BEGIN USART1_Init 1 */
+  /* USER CODE BEGIN UART4_Init 1 */
 
-  /* USER CODE END USART1_Init 1 */
-  huart1.Instance = USART1;
-  huart1.Init.BaudRate = 115200;
-  huart1.Init.WordLength = UART_WORDLENGTH_8B;
-  huart1.Init.StopBits = UART_STOPBITS_1;
-  huart1.Init.Parity = UART_PARITY_NONE;
-  huart1.Init.Mode = UART_MODE_TX_RX;
-  huart1.Init.HwFlowCtl = UART_HWCONTROL_NONE;
-  huart1.Init.OverSampling = UART_OVERSAMPLING_16;
-  huart1.Init.OneBitSampling = UART_ONE_BIT_SAMPLE_DISABLE;
-  huart1.Init.ClockPrescaler = UART_PRESCALER_DIV1;
-  huart1.AdvancedInit.AdvFeatureInit = UART_ADVFEATURE_NO_INIT;
-  if (HAL_UART_Init(&huart1) != HAL_OK)
+  /* USER CODE END UART4_Init 1 */
+  huart4.Instance = UART4;
+  huart4.Init.BaudRate = 115200;
+  huart4.Init.WordLength = UART_WORDLENGTH_8B;
+  huart4.Init.StopBits = UART_STOPBITS_1;
+  huart4.Init.Parity = UART_PARITY_NONE;
+  huart4.Init.Mode = UART_MODE_TX_RX;
+  huart4.Init.HwFlowCtl = UART_HWCONTROL_NONE;
+  huart4.Init.OverSampling = UART_OVERSAMPLING_16;
+  huart4.Init.OneBitSampling = UART_ONE_BIT_SAMPLE_DISABLE;
+  huart4.Init.ClockPrescaler = UART_PRESCALER_DIV1;
+  huart4.AdvancedInit.AdvFeatureInit = UART_ADVFEATURE_NO_INIT;
+  if (HAL_UART_Init(&huart4) != HAL_OK)
   {
     Error_Handler();
   }
-  if (HAL_UARTEx_SetTxFifoThreshold(&huart1, UART_TXFIFO_THRESHOLD_1_8) != HAL_OK)
+  if (HAL_UARTEx_SetTxFifoThreshold(&huart4, UART_TXFIFO_THRESHOLD_1_8) != HAL_OK)
   {
     Error_Handler();
   }
-  if (HAL_UARTEx_SetRxFifoThreshold(&huart1, UART_RXFIFO_THRESHOLD_1_8) != HAL_OK)
+  if (HAL_UARTEx_SetRxFifoThreshold(&huart4, UART_RXFIFO_THRESHOLD_1_8) != HAL_OK)
   {
     Error_Handler();
   }
-  if (HAL_UARTEx_DisableFifoMode(&huart1) != HAL_OK)
+  if (HAL_UARTEx_DisableFifoMode(&huart4) != HAL_OK)
   {
     Error_Handler();
   }
-  /* USER CODE BEGIN USART1_Init 2 */
+  /* USER CODE BEGIN UART4_Init 2 */
 
-  /* USER CODE END USART1_Init 2 */
+  /* USER CODE END UART4_Init 2 */
+
+}
+
+/**
+  * @brief TIM1 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_TIM1_Init(void)
+{
+
+  /* USER CODE BEGIN TIM1_Init 0 */
+
+  /* USER CODE END TIM1_Init 0 */
+
+  TIM_MasterConfigTypeDef sMasterConfig = {0};
+  TIM_OC_InitTypeDef sConfigOC = {0};
+  TIM_BreakDeadTimeConfigTypeDef sBreakDeadTimeConfig = {0};
+
+  /* USER CODE BEGIN TIM1_Init 1 */
+
+  /* USER CODE END TIM1_Init 1 */
+  htim1.Instance = TIM1;
+  htim1.Init.Prescaler = 340;
+  htim1.Init.CounterMode = TIM_COUNTERMODE_UP;
+  htim1.Init.Period = 20;
+  htim1.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
+  htim1.Init.RepetitionCounter = 0;
+  htim1.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
+  if (HAL_TIM_PWM_Init(&htim1) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
+  sMasterConfig.MasterOutputTrigger2 = TIM_TRGO2_RESET;
+  sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
+  if (HAL_TIMEx_MasterConfigSynchronization(&htim1, &sMasterConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sConfigOC.OCMode = TIM_OCMODE_PWM1;
+  sConfigOC.Pulse = 0;
+  sConfigOC.OCPolarity = TIM_OCPOLARITY_HIGH;
+  sConfigOC.OCNPolarity = TIM_OCNPOLARITY_HIGH;
+  sConfigOC.OCFastMode = TIM_OCFAST_DISABLE;
+  sConfigOC.OCIdleState = TIM_OCIDLESTATE_RESET;
+  sConfigOC.OCNIdleState = TIM_OCNIDLESTATE_RESET;
+  if (HAL_TIM_PWM_ConfigChannel(&htim1, &sConfigOC, TIM_CHANNEL_3) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sBreakDeadTimeConfig.OffStateRunMode = TIM_OSSR_DISABLE;
+  sBreakDeadTimeConfig.OffStateIDLEMode = TIM_OSSI_DISABLE;
+  sBreakDeadTimeConfig.LockLevel = TIM_LOCKLEVEL_OFF;
+  sBreakDeadTimeConfig.DeadTime = 0;
+  sBreakDeadTimeConfig.BreakState = TIM_BREAK_DISABLE;
+  sBreakDeadTimeConfig.BreakPolarity = TIM_BREAKPOLARITY_HIGH;
+  sBreakDeadTimeConfig.BreakFilter = 0;
+  sBreakDeadTimeConfig.BreakAFMode = TIM_BREAK_AFMODE_INPUT;
+  sBreakDeadTimeConfig.Break2State = TIM_BREAK2_DISABLE;
+  sBreakDeadTimeConfig.Break2Polarity = TIM_BREAK2POLARITY_HIGH;
+  sBreakDeadTimeConfig.Break2Filter = 0;
+  sBreakDeadTimeConfig.Break2AFMode = TIM_BREAK_AFMODE_INPUT;
+  sBreakDeadTimeConfig.AutomaticOutput = TIM_AUTOMATICOUTPUT_DISABLE;
+  if (HAL_TIMEx_ConfigBreakDeadTime(&htim1, &sBreakDeadTimeConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN TIM1_Init 2 */
+
+  /* USER CODE END TIM1_Init 2 */
+  HAL_TIM_MspPostInit(&htim1);
+
+}
+
+/**
+  * @brief TIM3 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_TIM3_Init(void)
+{
+
+  /* USER CODE BEGIN TIM3_Init 0 */
+
+  /* USER CODE END TIM3_Init 0 */
+
+  TIM_ClockConfigTypeDef sClockSourceConfig = {0};
+  TIM_MasterConfigTypeDef sMasterConfig = {0};
+  TIM_OC_InitTypeDef sConfigOC = {0};
+
+  /* USER CODE BEGIN TIM3_Init 1 */
+
+  /* USER CODE END TIM3_Init 1 */
+  htim3.Instance = TIM3;
+  htim3.Init.Prescaler = 340;
+  htim3.Init.CounterMode = TIM_COUNTERMODE_UP;
+  htim3.Init.Period = 20;
+  htim3.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
+  htim3.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
+  if (HAL_TIM_Base_Init(&htim3) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sClockSourceConfig.ClockSource = TIM_CLOCKSOURCE_INTERNAL;
+  if (HAL_TIM_ConfigClockSource(&htim3, &sClockSourceConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  if (HAL_TIM_PWM_Init(&htim3) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
+  sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
+  if (HAL_TIMEx_MasterConfigSynchronization(&htim3, &sMasterConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sConfigOC.OCMode = TIM_OCMODE_PWM1;
+  sConfigOC.Pulse = 0;
+  sConfigOC.OCPolarity = TIM_OCPOLARITY_HIGH;
+  sConfigOC.OCFastMode = TIM_OCFAST_DISABLE;
+  if (HAL_TIM_PWM_ConfigChannel(&htim3, &sConfigOC, TIM_CHANNEL_2) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN TIM3_Init 2 */
+
+  /* USER CODE END TIM3_Init 2 */
+  HAL_TIM_MspPostInit(&htim3);
+
+}
+
+/**
+  * @brief TIM8 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_TIM8_Init(void)
+{
+
+  /* USER CODE BEGIN TIM8_Init 0 */
+
+  /* USER CODE END TIM8_Init 0 */
+
+  TIM_ClockConfigTypeDef sClockSourceConfig = {0};
+  TIM_MasterConfigTypeDef sMasterConfig = {0};
+  TIM_OC_InitTypeDef sConfigOC = {0};
+  TIM_BreakDeadTimeConfigTypeDef sBreakDeadTimeConfig = {0};
+
+  /* USER CODE BEGIN TIM8_Init 1 */
+
+  /* USER CODE END TIM8_Init 1 */
+  htim8.Instance = TIM8;
+  htim8.Init.Prescaler = 340;
+  htim8.Init.CounterMode = TIM_COUNTERMODE_UP;
+  htim8.Init.Period = 20;
+  htim8.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
+  htim8.Init.RepetitionCounter = 0;
+  htim8.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
+  if (HAL_TIM_Base_Init(&htim8) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sClockSourceConfig.ClockSource = TIM_CLOCKSOURCE_INTERNAL;
+  if (HAL_TIM_ConfigClockSource(&htim8, &sClockSourceConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  if (HAL_TIM_PWM_Init(&htim8) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
+  sMasterConfig.MasterOutputTrigger2 = TIM_TRGO2_RESET;
+  sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
+  if (HAL_TIMEx_MasterConfigSynchronization(&htim8, &sMasterConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sConfigOC.OCMode = TIM_OCMODE_PWM1;
+  sConfigOC.Pulse = 0;
+  sConfigOC.OCPolarity = TIM_OCPOLARITY_HIGH;
+  sConfigOC.OCNPolarity = TIM_OCNPOLARITY_HIGH;
+  sConfigOC.OCFastMode = TIM_OCFAST_DISABLE;
+  sConfigOC.OCIdleState = TIM_OCIDLESTATE_RESET;
+  sConfigOC.OCNIdleState = TIM_OCNIDLESTATE_RESET;
+  if (HAL_TIM_PWM_ConfigChannel(&htim8, &sConfigOC, TIM_CHANNEL_1) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sBreakDeadTimeConfig.OffStateRunMode = TIM_OSSR_DISABLE;
+  sBreakDeadTimeConfig.OffStateIDLEMode = TIM_OSSI_DISABLE;
+  sBreakDeadTimeConfig.LockLevel = TIM_LOCKLEVEL_OFF;
+  sBreakDeadTimeConfig.DeadTime = 0;
+  sBreakDeadTimeConfig.BreakState = TIM_BREAK_DISABLE;
+  sBreakDeadTimeConfig.BreakPolarity = TIM_BREAKPOLARITY_HIGH;
+  sBreakDeadTimeConfig.BreakFilter = 0;
+  sBreakDeadTimeConfig.BreakAFMode = TIM_BREAK_AFMODE_INPUT;
+  sBreakDeadTimeConfig.Break2State = TIM_BREAK2_DISABLE;
+  sBreakDeadTimeConfig.Break2Polarity = TIM_BREAK2POLARITY_HIGH;
+  sBreakDeadTimeConfig.Break2Filter = 0;
+  sBreakDeadTimeConfig.Break2AFMode = TIM_BREAK_AFMODE_INPUT;
+  sBreakDeadTimeConfig.AutomaticOutput = TIM_AUTOMATICOUTPUT_DISABLE;
+  if (HAL_TIMEx_ConfigBreakDeadTime(&htim8, &sBreakDeadTimeConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN TIM8_Init 2 */
+
+  /* USER CODE END TIM8_Init 2 */
+  HAL_TIM_MspPostInit(&htim8);
 
 }
 
@@ -682,62 +911,48 @@ static void MX_GPIO_Init(void)
   __HAL_RCC_GPIOF_CLK_ENABLE();
   __HAL_RCC_GPIOA_CLK_ENABLE();
   __HAL_RCC_GPIOB_CLK_ENABLE();
-  __HAL_RCC_GPIOD_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOB, GPIO_PIN_15|GPIO_PIN_4|GPIO_PIN_5, GPIO_PIN_SET);
+  HAL_GPIO_WritePin(GPIOB, GPIO_PIN_15|GPIO_PIN_4, GPIO_PIN_SET);
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOC, GPIO_PIN_6|GPIO_PIN_12, GPIO_PIN_SET);
+  HAL_GPIO_WritePin(GPIOA, GPIO_PIN_9, GPIO_PIN_SET);
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOD, GPIO_PIN_2, GPIO_PIN_SET);
+  HAL_GPIO_WritePin(GPIOC, GPIO_PIN_12, GPIO_PIN_SET);
 
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(GPIOB, GPIO_PIN_7|GPIO_PIN_9, GPIO_PIN_RESET);
 
-  /*Configure GPIO pin : B1_Pin */
-  GPIO_InitStruct.Pin = B1_Pin;
-  GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING_FALLING;
+  /*Configure GPIO pin : PC13 */
+  GPIO_InitStruct.Pin = GPIO_PIN_13;
+  GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
-  HAL_GPIO_Init(B1_GPIO_Port, &GPIO_InitStruct);
+  HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
 
-  /*Configure GPIO pin : LD2_Pin */
-  GPIO_InitStruct.Pin = LD2_Pin;
+  /*Configure GPIO pins : LD2_Pin PA9 */
+  GPIO_InitStruct.Pin = LD2_Pin|GPIO_PIN_9;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-  HAL_GPIO_Init(LD2_GPIO_Port, &GPIO_InitStruct);
+  HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
 
-  /*Configure GPIO pins : PB15 PB4 PB5 PB7
-                           PB9 */
-  GPIO_InitStruct.Pin = GPIO_PIN_15|GPIO_PIN_4|GPIO_PIN_5|GPIO_PIN_7
-                          |GPIO_PIN_9;
+  /*Configure GPIO pins : PB15 PB4 PB7 PB9 */
+  GPIO_InitStruct.Pin = GPIO_PIN_15|GPIO_PIN_4|GPIO_PIN_7|GPIO_PIN_9;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
 
-  /*Configure GPIO pins : PC6 PC12 */
-  GPIO_InitStruct.Pin = GPIO_PIN_6|GPIO_PIN_12;
+  /*Configure GPIO pin : PC12 */
+  GPIO_InitStruct.Pin = GPIO_PIN_12;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
-
-  /*Configure GPIO pin : PD2 */
-  GPIO_InitStruct.Pin = GPIO_PIN_2;
-  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
-  GPIO_InitStruct.Pull = GPIO_NOPULL;
-  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-  HAL_GPIO_Init(GPIOD, &GPIO_InitStruct);
-
-  /* EXTI interrupt init*/
-  HAL_NVIC_SetPriority(EXTI15_10_IRQn, 5, 0);
-  HAL_NVIC_EnableIRQ(EXTI15_10_IRQn);
 
 }
 
@@ -766,7 +981,7 @@ void StartMainRecvTask(void *argument)
 
 	if (0 == down_head_flag){
 		down_head_flag = 1;
-		HAL_UART_Receive_IT(&huart1,(uint8_t*)down_head_buf,2);
+		HAL_UART_Receive_IT(&huart4,(uint8_t*)down_head_buf,2);
 	}
 
 	/* Infinite loop */
@@ -823,31 +1038,33 @@ void StartMainRecvTask(void *argument)
 			}
 		}
 
-		if (g_fan_1 == 1){
-			uint32_t tick;
-			tick = osKernelGetSysTimerCount();
-			uint32_t diff = tick - g_fan_1_start;
-			uint32_t freq = osKernelGetSysTimerFreq();
-			uint32_t timeout_value = 0.05 * g_fan_1_value * freq;
-			if (diff > timeout_value){
-				HAL_GPIO_WritePin(GPIOB, GPIO_PIN_5, GPIO_PIN_SET);
-				g_fan_1 = 2;
-				g_fan_1_start = osKernelGetSysTimerCount();
-				//PutErrorCode(ErrorQueueHandle,8);
-			}
-		}
-		else if(g_fan_1 == 2){
-			uint32_t tick;
-			tick = osKernelGetSysTimerCount();
-			uint32_t diff = tick - g_fan_1_start;
-			uint32_t freq = osKernelGetSysTimerFreq();
-			uint32_t timeout_value = 0.05 *(0x14 - g_fan_1_value) * freq;
-			if (diff > timeout_value){
-				HAL_GPIO_WritePin(GPIOB, GPIO_PIN_5, GPIO_PIN_RESET);
-				g_fan_1 = 1;
-				g_fan_1_start = osKernelGetSysTimerCount();
-			}
-		}
+//		if (g_fan_1 == 1){
+//			uint32_t tick;
+//			tick = osKernelGetSysTimerCount();
+//			uint32_t diff = tick - g_fan_1_start;
+//			uint32_t freq = osKernelGetSysTimerFreq();
+//			uint32_t timeout_value = 0.05 * g_fan_1_value * freq;
+//			if (diff > timeout_value){
+//				HAL_GPIO_WritePin(GPIOB, GPIO_PIN_5, GPIO_PIN_SET);
+//				g_fan_1 = 2;
+//				g_fan_1_start = osKernelGetSysTimerCount();
+//				//PutErrorCode(ErrorQueueHandle,8);
+//			}
+//		}
+//		else if(g_fan_1 == 2){
+//			uint32_t tick;
+//			tick = osKernelGetSysTimerCount();
+//			uint32_t diff = tick - g_fan_1_start;
+//			uint32_t freq = osKernelGetSysTimerFreq();
+//			uint32_t timeout_value = 0.05 *(0x14 - g_fan_1_value) * freq;
+//			if (diff > timeout_value){
+//				HAL_GPIO_WritePin(GPIOB, GPIO_PIN_5, GPIO_PIN_RESET);
+//				g_fan_1 = 1;
+//				g_fan_1_start = osKernelGetSysTimerCount();
+//			}
+//		}
+
+
 		osDelay(1);
 	}
   /* USER CODE END 5 */
@@ -883,7 +1100,7 @@ void StartWorkTask(void *argument)
 					}
 				}
 				else if(data_ptr[0] == 0x06){
-					if(data_ptr[1] == 0x01 ){
+					if(data_ptr[1] == 0x01 ){ //motor_1
 						char *len_ptr = data_ptr + 2;
 						int len_value = compute_len(len_ptr);
 						char * data_ptr = len_ptr + 4;
@@ -907,7 +1124,7 @@ void StartWorkTask(void *argument)
 							PutErrorCode(ErrorQueueHandle,0x05);
 						}
 					}
-					else if(data_ptr[1] == 0x02 ){
+					else if(data_ptr[1] == 0x02 ){ //motor_2
 						char *len_ptr = data_ptr + 2;
 						int len_value = compute_len(len_ptr);
 						char * data_ptr = len_ptr + 4;
@@ -936,7 +1153,7 @@ void StartWorkTask(void *argument)
 					}
 				}
 				else if(data_ptr[0] == 0x07){
-					if(data_ptr[1] == 0x01 ){
+					if(data_ptr[1] == 0x01 ){ //fan 1
 						char *len_ptr = data_ptr + 2;
 						int len_value = compute_len(len_ptr);
 						char * data_ptr = len_ptr + 4;
@@ -948,16 +1165,13 @@ void StartWorkTask(void *argument)
 							}
 							else{
 								if (value_1 == 0x01){
-									g_fan_1 = 1;
 									g_fan_1_value = value_2;
-									g_fan_1_start = osKernelGetSysTimerCount();
 									HAL_GPIO_WritePin(GPIOB, GPIO_PIN_4, GPIO_PIN_RESET);
-									HAL_GPIO_WritePin(GPIOB, GPIO_PIN_5, GPIO_PIN_RESET);
+									HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_2);
 								}
 								else if(value_1 == 0x02){
-									g_fan_1 = 0;
+									HAL_TIM_PWM_Stop(&htim3, TIM_CHANNEL_2);
 									HAL_GPIO_WritePin(GPIOB, GPIO_PIN_4, GPIO_PIN_SET);
-									HAL_GPIO_WritePin(GPIOB, GPIO_PIN_5, GPIO_PIN_SET);
 								}
 							}
 						}
@@ -965,14 +1179,83 @@ void StartWorkTask(void *argument)
 							PutErrorCode(ErrorQueueHandle,0x05);
 						}
 					}
-					else if(data_ptr[1] == 0x02 ){
-
+					else if(data_ptr[1] == 0x02 ){ //fan 2
+						char *len_ptr = data_ptr + 2;
+						int len_value = compute_len(len_ptr);
+						char * data_ptr = len_ptr + 4;
+						if(len_value == 2){
+							uint8_t value_1 = data_ptr[0];
+							uint8_t value_2 = data_ptr[1];
+							if ( (value_1 == 0x01) && (value_2 < 0x01 || value_2 > 0x14)){
+								PutErrorCode(ErrorQueueHandle,0x08);
+							}
+							else{
+								if (value_1 == 0x01){
+									g_fan_2_value = value_2;
+									HAL_GPIO_WritePin(GPIOC, GPIO_PIN_12, GPIO_PIN_RESET);
+									//HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_2);
+								}
+								else if(value_1 == 0x02){
+									//HAL_TIM_PWM_Stop(&htim3, TIM_CHANNEL_2);
+									HAL_GPIO_WritePin(GPIOC, GPIO_PIN_12, GPIO_PIN_SET);
+								}
+							}
+						}
+						else{
+							PutErrorCode(ErrorQueueHandle,0x05);
+						}
 					}
-					else if(data_ptr[1] == 0x03 ){
-
+					else if(data_ptr[1] == 0x03 ){  //fan 3
+						char *len_ptr = data_ptr + 2;
+						int len_value = compute_len(len_ptr);
+						char * data_ptr = len_ptr + 4;
+						if(len_value == 2){
+							uint8_t value_1 = data_ptr[0];
+							uint8_t value_2 = data_ptr[1];
+							if ( (value_1 == 0x01) && (value_2 < 0x01 || value_2 > 0x14)){
+								PutErrorCode(ErrorQueueHandle,0x08);
+							}
+							else{
+								if (value_1 == 0x01){
+									g_fan_3_value = value_2;
+									HAL_GPIO_WritePin(GPIOA, GPIO_PIN_9, GPIO_PIN_RESET);
+									HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_3);
+								}
+								else if(value_1 == 0x02){
+									HAL_TIM_PWM_Stop(&htim1, TIM_CHANNEL_3);
+									HAL_GPIO_WritePin(GPIOA, GPIO_PIN_9, GPIO_PIN_SET);
+								}
+							}
+						}
+						else{
+							PutErrorCode(ErrorQueueHandle,0x05);
+						}
 					}
-					else if(data_ptr[1] == 0x04 ){
-
+					else if(data_ptr[1] == 0x04 ){ //fan 4
+						char *len_ptr = data_ptr + 2;
+						int len_value = compute_len(len_ptr);
+						char * data_ptr = len_ptr + 4;
+						if(len_value == 2){
+							uint8_t value_1 = data_ptr[0];
+							uint8_t value_2 = data_ptr[1];
+							if ( (value_1 == 0x01) && (value_2 < 0x01 || value_2 > 0x14)){
+								PutErrorCode(ErrorQueueHandle,0x08);
+							}
+							else{
+								if (value_1 == 0x01){
+									g_fan_4_value = value_2;
+									HAL_GPIO_WritePin(GPIOB, GPIO_PIN_15, GPIO_PIN_RESET);
+									HAL_TIM_PWM_Start(&htim8, TIM_CHANNEL_1);
+								}
+								else if(value_1 == 0x02){
+									HAL_TIM_PWM_Stop(&htim8, TIM_CHANNEL_1);
+									HAL_GPIO_WritePin(GPIOB, GPIO_PIN_15, GPIO_PIN_SET);
+								}
+							}
+						}
+						else{
+							PutErrorCode(ErrorQueueHandle,0x05);
+						}
 					}
 					else{
 						PutErrorCode(ErrorQueueHandle,0x03);
@@ -983,7 +1266,7 @@ void StartWorkTask(void *argument)
 						char *len_ptr = data_ptr + 2;
 						int len_value = compute_len(len_ptr);
 						char * data_ptr = len_ptr + 4;
-						HAL_UART_Transmit(&huart1,(uint8_t*)data_ptr,len_value,0xffff);
+						HAL_UART_Transmit(&huart4,(uint8_t*)data_ptr,len_value,0xffff);
 					}
 					else{
 						PutErrorCode(ErrorQueueHandle,0x03);
