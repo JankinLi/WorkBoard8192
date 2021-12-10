@@ -1220,6 +1220,7 @@ void StartWorkTask(void *argument)
 							else{
 								if (value_1 == 0x01){
 									g_fan_1_value = value_2;
+									TIM3->CCR2 = (htim3.Init.Period * g_fan_1_value) / 20u;  // fan 1
 									HAL_GPIO_WritePin(GPIOB, GPIO_PIN_4, GPIO_PIN_RESET);
 									HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_2);
 								}
@@ -1272,6 +1273,7 @@ void StartWorkTask(void *argument)
 							else{
 								if (value_1 == 0x01){
 									g_fan_3_value = value_2;
+									TIM1->CCR3 = (htim1.Init.Period * g_fan_3_value) / 20u;  // fan 3
 									HAL_GPIO_WritePin(GPIOA, GPIO_PIN_9, GPIO_PIN_RESET);
 									HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_3);
 								}
@@ -1298,6 +1300,7 @@ void StartWorkTask(void *argument)
 							else{
 								if (value_1 == 0x01){
 									g_fan_4_value = value_2;
+									TIM8->CCR1 = (htim8.Init.Period * g_fan_4_value) / 20u;  //fan 4
 									HAL_GPIO_WritePin(GPIOB, GPIO_PIN_15, GPIO_PIN_RESET);
 									HAL_TIM_PWM_Start(&htim8, TIM_CHANNEL_1);
 								}
