@@ -718,6 +718,10 @@ static void MX_TIM3_Init(void)
   {
     Error_Handler();
   }
+  if (HAL_TIM_PWM_ConfigChannel(&htim3, &sConfigOC, TIM_CHANNEL_3) != HAL_OK)
+  {
+    Error_Handler();
+  }
   /* USER CODE BEGIN TIM3_Init 2 */
 
   /* USER CODE END TIM3_Init 2 */
@@ -1247,11 +1251,12 @@ void StartWorkTask(void *argument)
 							else{
 								if (value_1 == 0x01){
 									g_fan_2_value = value_2;
+									TIM3->CCR3 = (htim3.Init.Period * g_fan_2_value) / 20u;  // fan 2
 									HAL_GPIO_WritePin(GPIOC, GPIO_PIN_12, GPIO_PIN_RESET);
-									//HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_2);
+									HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_3);
 								}
 								else if(value_1 == 0x02){
-									//HAL_TIM_PWM_Stop(&htim3, TIM_CHANNEL_2);
+									HAL_TIM_PWM_Stop(&htim3, TIM_CHANNEL_3);
 									HAL_GPIO_WritePin(GPIOC, GPIO_PIN_12, GPIO_PIN_SET);
 								}
 							}
