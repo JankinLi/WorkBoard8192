@@ -339,7 +339,7 @@ void receive_down_data_part(){
 
 void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 {
-	if (huart->Instance == LPUART1){
+	if (huart->Instance == USART1){
 		if(1 == main_body_flag){
 			receive_main_data_part();
 			return;
