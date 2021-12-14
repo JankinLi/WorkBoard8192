@@ -402,6 +402,34 @@ void put_int_into_out_buffer(uint8_t type1_value, uint8_t type2_value, int value
 	osMutexRelease(OutMutexHandle);
 }
 
+void put_byte_into_out_buffer(uint8_t type1_value, uint8_t type2_value, uint8_t value){
+	osMutexAcquire(OutMutexHandle, osWaitForever);
+
+		char buffer[8] = {0x4D, 0x43};
+		buffer[2] = type1_value;
+		buffer[3] = type2_value;
+
+		char *p = main_out_buffer[main_out_write_index];
+		if (value > 0){
+			char *p_len = buffer + 4;
+			int len = 1;
+			memcpy(p_len, &len, 1);
+		}
+		memcpy(p, buffer, 8);
+
+		if (value > 0){
+			char *p_data = p + 8;
+			memcpy(p_data, &value, 1);
+		}
+
+		uint8_t pos = main_out_write_index;
+		osMessageQueuePut(MainOutQueueHandle, &pos, 0U, 0U);
+
+		move_main_out_next_write_index();
+
+		osMutexRelease(OutMutexHandle);
+}
+
 
 //vibration motor
 uint8_t g_motor_1 = 0;
@@ -419,7 +447,7 @@ uint8_t g_fan_3_value = 0x00;
 uint8_t g_fan_4_value = 0x00;
 
 
-
+// ADC
 uint16_t ADC_VALUE = 0;  //value of strength
 //void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc)
 //{
@@ -428,6 +456,20 @@ uint16_t ADC_VALUE = 0;  //value of strength
 //
 //	put_int_into_out_buffer(0x01, 0x04, ADC_VALUE);
 //}
+
+
+//Human radar
+void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) {
+	if (GPIO_Pin == GPIO_PIN_13){
+		if (HAL_GPIO_ReadPin(GPIOC, GPIO_PIN_13) == GPIO_PIN_SET){
+			put_byte_into_out_buffer(0x03, 0x01, 0x01);
+			//__HAL_GPIO_EXTI_CLEAR_IT(GPIO_PIN_13);            //清除引脚中断
+		}
+		else if (HAL_GPIO_ReadPin(GPIOC, GPIO_PIN_13) == GPIO_PIN_RESET){
+			put_byte_into_out_buffer(0x03, 0x01, 0x02);
+		}
+	}
+}
 
 /* USER CODE END 0 */
 
@@ -826,7 +868,7 @@ static void MX_GPIO_Init(void)
 
   /*Configure GPIO pin : PC13 */
   GPIO_InitStruct.Pin = GPIO_PIN_13;
-  GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING;
+  GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING_FALLING;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
 
