@@ -252,7 +252,7 @@ unsigned char down_body_flag = 0;
 char down_body_buf[DOWN_BUFFER_SIZE];
 char *p_down_current = down_body_buf;
 
-//main receive buffer
+//down receive buffer
 #define DOWN_BUFFER_COUNT 4
 char down_data_buffer[DOWN_BUFFER_COUNT][DOWN_BUFFER_SIZE];
 
@@ -331,6 +331,13 @@ void receive_down_data_part(){
 	HAL_UART_Receive_IT(&huart4,(uint8_t*)p_down_current, 1);
 }
 
+//health COM Device
+unsigned char bt_head_flag = 0;
+char bt_head_buf[2];
+
+void receive_bt_head(){
+
+}
 
 void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 {
@@ -347,17 +354,24 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 		return;
 	}
 
-	if (huart->Instance == UART4 ){
+	if (huart->Instance == UART4 ){ //Main COM
 		if(1 == down_body_flag){
 			receive_down_data_part();
 			return;
 		}
 
-		if (1 == down_head_flag){
+		if (1 == down_head_flag){ //DOWN Control Board COM
 			receive_down_head();
 			return;
 		}
 		return;
+	}
+
+	if (huart->Instance == USART3){ //BT COM
+		if (1 == bt_head_flag){
+			receive_bt_head();
+			return;
+		}
 	}
 }
 
@@ -1219,7 +1233,24 @@ void StartWorkTask(void *argument)
 						char *len_ptr = data_ptr + 2;
 						int len_value = compute_len(len_ptr);
 						char * data_ptr = len_ptr + 4;
-						HAL_UART_Transmit(&huart4,(uint8_t*)data_ptr,len_value,0xffff);
+						HAL_StatusTypeDef ret = HAL_UART_Transmit(&huart4,(uint8_t*)data_ptr,len_value,0xffff);
+						if (ret != HAL_OK){
+							PutErrorCode(ErrorQueueHandle,0xE8);
+						}
+					}
+					else{
+						PutErrorCode(ErrorQueueHandle,0x03);
+					}
+				}
+				else if(data_ptr[0] == 0x0E){
+					if(data_ptr[1] == 0x01 ){
+						char *len_ptr = data_ptr + 2;
+						int len_value = compute_len(len_ptr);
+						char * data_ptr = len_ptr + 4;
+						HAL_StatusTypeDef ret = HAL_UART_Transmit(&huart3,(uint8_t*)data_ptr,len_value,0xffff);
+						if (ret != HAL_OK){
+							PutErrorCode(ErrorQueueHandle,0xEE);
+						}
 					}
 					else{
 						PutErrorCode(ErrorQueueHandle,0x03);
@@ -1284,8 +1315,15 @@ void StartErrorTask(void *argument)
 		osStatus_t status = osMessageQueueGet(ErrorQueueHandle, &code_value, NULL, 0U);
 		if (status == osOK) {
 			unsigned char buffer[8] = {0x4D, 0x43};
-			buffer[2] = 0x0E;
-			buffer[3] = code_value;
+			if ( code_value > 0xE0){
+				uint8_t value_temp = code_value & 0x0F;
+				buffer[2] = value_temp;
+				buffer[3] = 0xEE;
+			}
+			else{
+				buffer[2] = 0x0E;
+				buffer[3] = code_value;
+			}
 			HAL_UART_Transmit(&huart1,(uint8_t*)buffer,8,0xffff);
 		}
 		osDelay(1);
