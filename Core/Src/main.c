@@ -419,14 +419,14 @@ void put_int_into_out_buffer(uint8_t type1_value, uint8_t type2_value, int value
 	buffer[3] = type2_value;
 
 	char *p = main_out_buffer[main_out_write_index];
-	if (value > 0){
+	if (value >= 0){
 		char *p_len = buffer + 4;
 		int len = 4;
 		memcpy(p_len, &len, 4);
 	}
 	memcpy(p, buffer, 8);
 
-	if (value > 0){
+	if (value >= 0){
 		char *p_data = p + 8;
 		memcpy(p_data, &value, 4);
 	}
@@ -518,7 +518,7 @@ void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc)
 		put_int_into_out_buffer(0x04, 0x01, ADC_VALUE);
 	}
 	else if (hadc->Instance == ADC2){ //TORQE //PA0
-		ADC_VALUE = HAL_ADC_GetValue(&hadc1);
+		ADC_VALUE = HAL_ADC_GetValue(&hadc2);
 
 		put_int_into_out_buffer(0x01, 0x04, ADC_VALUE);
 	}
@@ -1782,10 +1782,10 @@ void StartWorkTask(void *argument)
 						put_int_into_out_buffer(0x01, 0x02, 0x1024);
 
 						// Start ADC Conversion
-						HAL_ADC_Start_IT(&hadc1);
+						HAL_ADC_Start_IT(&hadc2);
 					}
 					else if(data_ptr[1] == 0x06 ){
-						HAL_ADC_Stop_IT(&hadc1);
+						HAL_ADC_Stop_IT(&hadc2);
 					}
 					else{
 						PutErrorCode(ErrorQueueHandle,0x03);
