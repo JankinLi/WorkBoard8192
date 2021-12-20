@@ -621,6 +621,62 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) {
 	}
 }
 
+// LOGO lamp
+#define LOGO_COUNT 23
+uint8_t g_logo_lamp_flag = 0;
+uint8_t g_logo_lamp_value[LOGO_COUNT][3];
+uint32_t g_logo_lamp_start = 0;
+uint8_t g_logo_lamp_bit_index = 0;
+uint8_t g_logo_lamp_pos = 0;
+uint8_t g_logo_lamp_index = 0;
+
+// E lamp
+uint8_t g_e_lamp_flag = 0;
+uint8_t g_e_lamp_value[21][3];
+uint32_t side = 0;
+
+// side lamp 1
+uint8_t g_side_1_lamp_flag = 0;
+uint8_t g_side_1_lamp_value[168][3];
+uint32_t g_side_1_lamp_start = 0;
+
+// side lamp 2
+uint8_t g_side_2_lamp_flag = 0;
+uint8_t g_side_2_lamp_value[168][3];
+uint32_t g_side_2_lamp_start = 0;
+
+uint8_t compute_logo_final_value(){
+	uint8_t value = g_logo_lamp_value[g_logo_lamp_index][g_logo_lamp_pos];
+	uint8_t bit_value = ( value & ( 0x01 << g_logo_lamp_bit_index ) ) >> g_logo_lamp_bit_index;
+	uint8_t final_val = 1;
+	if (bit_value == 1){
+		final_val = 3;
+	}
+	return final_val;
+}
+
+void fill_logo_lamp_color(uint32_t color_value){
+	uint8_t red_value = (color_value & 0xFF0000) >> 16;
+	uint8_t green_value = (color_value & 0x00FF00) >> 8;
+	uint8_t blue_value = (color_value & 0x0000FF);
+
+	uint8_t i=0;
+	for(i=0; i< LOGO_COUNT; i++){
+		g_logo_lamp_value[i][0] = red_value;
+		g_logo_lamp_value[i][1] = green_value;
+		g_logo_lamp_value[i][2] = blue_value;
+	}
+	g_logo_lamp_flag = 1;
+	g_logo_lamp_start = osKernelGetSysTimerCount();
+	g_logo_lamp_pos = 0;
+	g_logo_lamp_index = 0;
+	g_logo_lamp_bit_index = 7;
+
+	uint8_t final_value = compute_logo_final_value();
+	TIM3->CCR2 = (htim3.Init.Period * final_value) / 4u;
+	HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_2);  //TIM1_CH2
+}
+
 /* USER CODE END 0 */
 
 /**
@@ -989,9 +1045,9 @@ static void MX_TIM1_Init(void)
 
   /* USER CODE END TIM1_Init 1 */
   htim1.Instance = TIM1;
-  htim1.Init.Prescaler = 0;
+  htim1.Init.Prescaler = 10;
   htim1.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim1.Init.Period = 65535;
+  htim1.Init.Period = 4;
   htim1.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
   htim1.Init.RepetitionCounter = 0;
   htim1.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
@@ -1277,9 +1333,9 @@ static void MX_TIM16_Init(void)
 
   /* USER CODE END TIM16_Init 1 */
   htim16.Instance = TIM16;
-  htim16.Init.Prescaler = 0;
+  htim16.Init.Prescaler = 10;
   htim16.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim16.Init.Period = 65535;
+  htim16.Init.Period = 4;
   htim16.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
   htim16.Init.RepetitionCounter = 0;
   htim16.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
@@ -1340,9 +1396,9 @@ static void MX_TIM17_Init(void)
 
   /* USER CODE END TIM17_Init 1 */
   htim17.Instance = TIM17;
-  htim17.Init.Prescaler = 0;
+  htim17.Init.Prescaler = 10;
   htim17.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim17.Init.Period = 65535;
+  htim17.Init.Period = 4;
   htim17.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
   htim17.Init.RepetitionCounter = 0;
   htim17.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
@@ -1673,6 +1729,8 @@ void StartMainRecvTask(void *argument)
 		HAL_UART_Receive_IT(&huart4,(uint8_t*)down_head_buf,2);
 	}
 
+	fill_logo_lamp_color(0xCFFFFF);
+
 	/* Infinite loop */
 	for(;;)
 	{
@@ -1750,7 +1808,33 @@ void StartMainRecvTask(void *argument)
 //			}
 //		}
 
+		if (g_logo_lamp_flag == 1){
+			uint32_t tick;
+			tick = osKernelGetSysTimerCount();
+			uint32_t diff = tick - g_logo_lamp_start;
+			uint32_t freq = osKernelGetSysTimerFreq();
+			uint32_t timeout_value = 0.0000012 * freq;
+			if (diff >= timeout_value){
+				if (g_logo_lamp_bit_index == 0){
+					g_logo_lamp_bit_index = 7;
+					g_logo_lamp_pos++;
+					if (g_logo_lamp_pos>2){
+						g_logo_lamp_pos = 0;
+						g_logo_lamp_index ++;
+						if (g_logo_lamp_index >= LOGO_COUNT){
+							g_logo_lamp_flag = 0;
+							HAL_TIM_PWM_Stop(&htim1, TIM_CHANNEL_2);
+						}
+					}
+				}
+				else{
+					g_logo_lamp_bit_index--;
+				}
 
+				uint8_t final_value = compute_logo_final_value();
+				TIM3->CCR2 = (htim3.Init.Period * final_value) / 4u;
+			}
+		}
 		osDelay(1);
 	}
   /* USER CODE END 5 */
