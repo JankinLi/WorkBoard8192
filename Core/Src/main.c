@@ -666,13 +666,14 @@ int main(void)
   MX_ADC2_Init();
   /* USER CODE BEGIN 2 */
 
-  //HAL_TIM_Base_Start_IT(&htim1);
-  //HAL_TIM_Base_Start_IT(&htim3);
-  //HAL_TIM_Base_Start_IT(&htim8);
+//  HAL_TIM_Base_Start_IT(&htim2);
+//  HAL_TIM_Base_Start_IT(&htim3);
+//  HAL_TIM_Base_Start_IT(&htim8);
 
   // Calibrate The ADC On Power-Up For Better Accuracy
-  //uint32_t SingleDiff = 0;
-  //HAL_ADCEx_Calibration_Start(&hadc1, SingleDiff);
+  uint32_t SingleDiff = ADC_SINGLE_ENDED;
+  HAL_ADCEx_Calibration_Start(&hadc1, SingleDiff);
+  HAL_ADCEx_Calibration_Start(&hadc2, SingleDiff);
 
   /* USER CODE END 2 */
 
@@ -830,7 +831,7 @@ static void MX_ADC1_Init(void)
   /** Common config
   */
   hadc1.Instance = ADC1;
-  hadc1.Init.ClockPrescaler = ADC_CLOCK_SYNC_PCLK_DIV2;
+  hadc1.Init.ClockPrescaler = ADC_CLOCK_SYNC_PCLK_DIV4;
   hadc1.Init.Resolution = ADC_RESOLUTION_12B;
   hadc1.Init.DataAlign = ADC_DATAALIGN_RIGHT;
   hadc1.Init.GainCompensation = 0;
@@ -894,7 +895,7 @@ static void MX_ADC2_Init(void)
   /** Common config
   */
   hadc2.Instance = ADC2;
-  hadc2.Init.ClockPrescaler = ADC_CLOCK_SYNC_PCLK_DIV2;
+  hadc2.Init.ClockPrescaler = ADC_CLOCK_SYNC_PCLK_DIV4;
   hadc2.Init.Resolution = ADC_RESOLUTION_12B;
   hadc2.Init.DataAlign = ADC_DATAALIGN_RIGHT;
   hadc2.Init.GainCompensation = 0;
