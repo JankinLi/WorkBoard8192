@@ -624,6 +624,7 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) {
 // LOGO lamp
 #define LOGO_COUNT 23
 uint8_t g_logo_lamp_flag = 0;
+uint32_t g_logo_lamp_color_value;
 uint8_t g_logo_lamp_value[LOGO_COUNT][3];
 uint32_t g_logo_lamp_start = 0;
 uint8_t g_logo_lamp_bit_index = 0;
@@ -655,7 +656,21 @@ uint8_t compute_logo_final_value(){
 	return final_val;
 }
 
-void fill_logo_lamp_color(uint32_t color_value){
+void start_logo_lamp_pwm(){
+	g_logo_lamp_flag = 1;
+	g_logo_lamp_start = osKernelGetSysTimerCount();
+	g_logo_lamp_pos = 0;
+	g_logo_lamp_index = 0;
+	g_logo_lamp_bit_index = 7;
+
+	uint8_t final_value = compute_logo_final_value();
+	TIM1->CCR2 = (htim1.Init.Period * final_value) / 4u;
+	HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_2);  //TIM1_CH2
+}
+
+void fill_logo_lamp_color(){
+	uint32_t color_value = g_logo_lamp_color_value;
+
 	uint8_t red_value = (color_value & 0xFF0000) >> 16;
 	uint8_t green_value = (color_value & 0x00FF00) >> 8;
 	uint8_t blue_value = (color_value & 0x0000FF);
@@ -666,16 +681,25 @@ void fill_logo_lamp_color(uint32_t color_value){
 		g_logo_lamp_value[i][1] = green_value;
 		g_logo_lamp_value[i][2] = blue_value;
 	}
-	g_logo_lamp_flag = 1;
-	g_logo_lamp_start = osKernelGetSysTimerCount();
-	g_logo_lamp_pos = 0;
-	g_logo_lamp_index = 0;
-	g_logo_lamp_bit_index = 7;
-
-	uint8_t final_value = compute_logo_final_value();
-	TIM3->CCR2 = (htim3.Init.Period * final_value) / 4u;
-	HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_2);  //TIM1_CH2
+	start_logo_lamp_pwm();
 }
+
+void fill_logo_lamp_blank(){
+	uint32_t color_value = 0x00;
+	uint8_t red_value = (color_value & 0xFF0000) >> 16;
+	uint8_t green_value = (color_value & 0x00FF00) >> 8;
+	uint8_t blue_value = (color_value & 0x0000FF);
+
+	uint8_t i=0;
+	for(i=0; i< LOGO_COUNT; i++){
+		g_logo_lamp_value[i][0] = red_value;
+		g_logo_lamp_value[i][1] = green_value;
+		g_logo_lamp_value[i][2] = blue_value;
+	}
+	start_logo_lamp_pwm();
+}
+
+
 
 /* USER CODE END 0 */
 
@@ -1730,7 +1754,8 @@ void StartMainRecvTask(void *argument)
 		HAL_UART_Receive_IT(&huart4,(uint8_t*)down_head_buf,2);
 	}
 
-	fill_logo_lamp_color(0xCF0F0F);
+	g_logo_lamp_color_value = 0xCF0F0F;
+	fill_logo_lamp_color();
 
 	/* Infinite loop */
 	for(;;)
@@ -2066,6 +2091,36 @@ void StartWorkTask(void *argument)
 					}
 					else if(data_ptr[1] == 0x04 ){
 						g_idle_mode = 1; //sleep mode
+					}
+					else{
+						PutErrorCode(ErrorQueueHandle,0x03);
+					}
+				}
+				else if (data_ptr[0] == 0x0c){
+					if(data_ptr[1] == 0x01 ){
+						char *len_ptr = data_ptr + 2;
+						int len_value = compute_len(len_ptr);
+						char * data_ptr = len_ptr + 4;
+						if(len_value == 5){
+							uint8_t value_on = data_ptr[0];
+							uint8_t value_red = data_ptr[1];
+							uint8_t value_green = data_ptr[2];
+							uint8_t value_blue = data_ptr[3];
+							if (value_on == 0x01){
+								uint32_t color_value = (value_red << 16) | (value_green << 8) | value_blue;
+								g_logo_lamp_color_value = color_value;
+								fill_logo_lamp_color();
+							}
+							else if (value_on == 0x02){
+								fill_logo_lamp_blank();
+							}
+							else{
+								PutErrorCode(ErrorQueueHandle,0x08);
+							}
+						}
+						else{
+							PutErrorCode(ErrorQueueHandle,0x05);
+						}
 					}
 					else{
 						PutErrorCode(ErrorQueueHandle,0x03);
