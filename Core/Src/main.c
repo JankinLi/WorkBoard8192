@@ -1661,16 +1661,16 @@ static void MX_GPIO_Init(void)
   __HAL_RCC_GPIOB_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOB, GPIO_PIN_15, GPIO_PIN_SET);
+  HAL_GPIO_WritePin(GPIOB, GPIO_PIN_15|GPIO_PIN_4|GPIO_PIN_7|GPIO_PIN_9, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOA, GPIO_PIN_8|GPIO_PIN_9, GPIO_PIN_SET);
+  HAL_GPIO_WritePin(GPIOA, GPIO_PIN_8, GPIO_PIN_SET);
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOC, GPIO_PIN_12, GPIO_PIN_SET);
+  HAL_GPIO_WritePin(GPIOA, GPIO_PIN_9, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOB, GPIO_PIN_4|GPIO_PIN_7|GPIO_PIN_9, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(GPIOC, GPIO_PIN_12, GPIO_PIN_RESET);
 
   /*Configure GPIO pins : PC13 PC0 */
   GPIO_InitStruct.Pin = GPIO_PIN_13|GPIO_PIN_0;
@@ -2000,12 +2000,12 @@ void StartWorkTask(void *argument)
 								if (value_1 == 0x01){
 									g_fan_2_value = value_2;
 									TIM8->CCR3 = (htim8.Init.Period * g_fan_2_value) / 20u;  // fan 2
-									HAL_GPIO_WritePin(GPIOC, GPIO_PIN_12, GPIO_PIN_RESET);
+									HAL_GPIO_WritePin(GPIOC, GPIO_PIN_12, GPIO_PIN_SET);
 									HAL_TIM_PWM_Start(&htim8, TIM_CHANNEL_3);
 								}
 								else if(value_1 == 0x02){
 									HAL_TIM_PWM_Stop(&htim8, TIM_CHANNEL_3);
-									HAL_GPIO_WritePin(GPIOC, GPIO_PIN_12, GPIO_PIN_SET);
+									HAL_GPIO_WritePin(GPIOC, GPIO_PIN_12, GPIO_PIN_RESET);
 								}
 							}
 						}
@@ -2027,12 +2027,12 @@ void StartWorkTask(void *argument)
 								if (value_1 == 0x01){
 									g_fan_3_value = value_2;
 									TIM2->CCR4 = (htim2.Init.Period * g_fan_3_value) / 20u;  // fan 3
-									HAL_GPIO_WritePin(GPIOA, GPIO_PIN_9, GPIO_PIN_RESET);
+									HAL_GPIO_WritePin(GPIOA, GPIO_PIN_9, GPIO_PIN_SET);
 									HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_4);
 								}
 								else if(value_1 == 0x02){
 									HAL_TIM_PWM_Stop(&htim2, TIM_CHANNEL_4);
-									HAL_GPIO_WritePin(GPIOA, GPIO_PIN_9, GPIO_PIN_SET);
+									HAL_GPIO_WritePin(GPIOA, GPIO_PIN_9, GPIO_PIN_RESET);
 								}
 							}
 						}
@@ -2054,12 +2054,12 @@ void StartWorkTask(void *argument)
 								if (value_1 == 0x01){
 									g_fan_4_value = value_2;
 									TIM8->CCR1 = (htim8.Init.Period * g_fan_4_value) / 20u;  //fan 4
-									HAL_GPIO_WritePin(GPIOB, GPIO_PIN_15, GPIO_PIN_RESET);
+									HAL_GPIO_WritePin(GPIOB, GPIO_PIN_15, GPIO_PIN_SET);
 									HAL_TIM_PWM_Start(&htim8, TIM_CHANNEL_1);
 								}
 								else if(value_1 == 0x02){
 									HAL_TIM_PWM_Stop(&htim8, TIM_CHANNEL_1);
-									HAL_GPIO_WritePin(GPIOB, GPIO_PIN_15, GPIO_PIN_SET);
+									HAL_GPIO_WritePin(GPIOB, GPIO_PIN_15, GPIO_PIN_RESET);
 								}
 							}
 						}
