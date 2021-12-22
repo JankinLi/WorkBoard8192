@@ -746,9 +746,12 @@ int main(void)
   MX_ADC2_Init();
   /* USER CODE BEGIN 2 */
 
-//  HAL_TIM_Base_Start_IT(&htim2);
-//  HAL_TIM_Base_Start_IT(&htim3);
-//  HAL_TIM_Base_Start_IT(&htim8);
+  HAL_TIM_Base_Start_IT(&htim1);
+  HAL_TIM_Base_Start_IT(&htim2);
+  HAL_TIM_Base_Start_IT(&htim3);
+  HAL_TIM_Base_Start_IT(&htim8);
+  HAL_TIM_Base_Start_IT(&htim16);
+  HAL_TIM_Base_Start_IT(&htim17);
 
   // Calibrate The ADC On Power-Up For Better Accuracy
   uint32_t SingleDiff = ADC_SINGLE_ENDED;
