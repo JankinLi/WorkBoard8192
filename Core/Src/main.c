@@ -2104,7 +2104,7 @@ void StartWorkTask(void *argument)
 						char *len_ptr = data_ptr + 2;
 						int len_value = compute_len(len_ptr);
 						char * data_ptr = len_ptr + 4;
-						if(len_value == 5){
+						if(len_value == 4){
 							uint8_t value_on = data_ptr[0];
 							uint8_t value_red = data_ptr[1];
 							uint8_t value_green = data_ptr[2];
