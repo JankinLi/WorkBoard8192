@@ -152,6 +152,12 @@ void StartDownBoardTask(void *argument);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
+
+// idle mode
+uint8_t g_idle_mode = -2; //-2 is wait down board, -1 is wait 0x01-0x01 telegram, 0 is work mode , 1 is sleep mode
+uint32_t g_wait_down_board_start =0;
+uint8_t g_down_borad_init_data_ptr[8];
+
 // main COM port
 unsigned char main_head_flag = 0;
 char main_head_buf[8];
@@ -328,6 +334,17 @@ void receive_down_head(){
 void receive_down_data_part(){
 	uint8_t value = *p_down_current;
 	if (value == 0xFD){
+		if (g_idle_mode == -2){ //when first communication with down board is finish, change mode.
+			g_idle_mode = -1;
+			set_down_head_it();
+			return;
+		}
+
+		if (g_idle_mode == -1){ //when mode is -1, ignore data from down board.
+			set_down_head_it();
+			return;
+		}
+
 		uint32_t ret = osMessageQueueGetSpace(DownBoardQueueHandle);
 		if (ret ==0){
 			PutErrorCode(ErrorQueueHandle,0x06);
@@ -544,8 +561,19 @@ void put_five_bytes_into_out_buffer(uint8_t type1_value, uint8_t type2_value, ui
 	osMutexRelease(OutMutexHandle);
 }
 
-// idle mode
-uint8_t g_idle_mode = -1; //-2 is wait down board, -1 is wait 0x01-0x01 telegram, 0 is work mode , 1 is sleep mode
+void fill_down_board_init_telegram(){
+	memset(g_down_borad_init_data_ptr, 0x00, 8);
+	uint8_t *p = g_down_borad_init_data_ptr;
+	p[0] = 0xf7;
+	p[1] = 0xf8;
+	p[2] = 0x04;
+	p[3] = 0x01;
+	p[4] = 0x01;
+	p[5] = 0x01;
+	p[6] = 0x07;
+	p[7] = 0xfd;
+}
+
 // power button flag
 uint8_t g_power_btn = 0;
 uint32_t g_power_start = 0;
@@ -1899,16 +1927,32 @@ void StartMainRecvTask(void *argument)
 	g_energy_lamp_color_value = 0xFF00FF;
 	fill_energy_lamp_color();
 
+	fill_down_board_init_telegram();
+	g_wait_down_board_start = osKernelGetSysTimerCount();
+	HAL_UART_Transmit(&huart4,(uint8_t*)g_down_borad_init_data_ptr,0x08,0xffff);
+
 	/* Infinite loop */
 	for(;;)
 	{
+		if (g_idle_mode == -2){
+			uint32_t tick;
+			tick = osKernelGetSysTimerCount();
+			uint32_t diff = tick - g_motor_1_start;
+			uint32_t freq = osKernelGetSysTimerFreq();
+			uint32_t timeout_value = 1 * freq;
+			if (diff >= timeout_value){
+				g_wait_down_board_start = osKernelGetSysTimerCount();
+				HAL_UART_Transmit(&huart4,(uint8_t*)g_down_borad_init_data_ptr,0x08,0xffff);
+			}
+		}
+
 		if (g_motor_1 == 1){
 			uint32_t tick;
 			tick = osKernelGetSysTimerCount();
 			uint32_t diff = tick - g_motor_1_start;
 			uint32_t freq = osKernelGetSysTimerFreq();
 			uint32_t timeout_value = 1 * freq;
-			if (diff > timeout_value){
+			if (diff >= timeout_value){
 				HAL_GPIO_WritePin(GPIOB, GPIO_PIN_9, GPIO_PIN_RESET);
 				g_motor_1 = 2;
 				g_motor_1_start = osKernelGetSysTimerCount();
@@ -1920,7 +1964,7 @@ void StartMainRecvTask(void *argument)
 			uint32_t diff = tick - g_motor_1_start;
 			uint32_t freq = osKernelGetSysTimerFreq();
 			uint32_t timeout_value = 1 * freq;
-			if (diff > timeout_value){
+			if (diff >= timeout_value){
 				HAL_GPIO_WritePin(GPIOB, GPIO_PIN_9, GPIO_PIN_SET);
 				g_motor_1 = 1;
 				g_motor_1_start = osKernelGetSysTimerCount();
@@ -1932,7 +1976,7 @@ void StartMainRecvTask(void *argument)
 			uint32_t diff = tick - g_motor_2_start;
 			uint32_t freq = osKernelGetSysTimerFreq();
 			uint32_t timeout_value = 1 * freq;
-			if (diff > timeout_value){
+			if (diff >= timeout_value){
 				HAL_GPIO_WritePin(GPIOB, GPIO_PIN_7, GPIO_PIN_RESET);
 				g_motor_2 = 2;
 				g_motor_2_start = osKernelGetSysTimerCount();
@@ -1944,7 +1988,7 @@ void StartMainRecvTask(void *argument)
 			uint32_t diff = tick - g_motor_2_start;
 			uint32_t freq = osKernelGetSysTimerFreq();
 			uint32_t timeout_value = 1 * freq;
-			if (diff > timeout_value){
+			if (diff >= timeout_value){
 				HAL_GPIO_WritePin(GPIOB, GPIO_PIN_7, GPIO_PIN_SET);
 				g_motor_2 = 1;
 				g_motor_2_start = osKernelGetSysTimerCount();
