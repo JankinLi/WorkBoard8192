@@ -442,19 +442,19 @@ void put_int_into_out_buffer(uint8_t type1_value, uint8_t type2_value, int value
 void put_byte_into_out_buffer(uint8_t type1_value, uint8_t type2_value, uint8_t value){
 	osMutexAcquire(OutMutexHandle, osWaitForever);
 
-	char buffer[8] = {0x4D, 0x43};
+	char buffer[8] = {0x4D, 0x43, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
 	buffer[2] = type1_value;
 	buffer[3] = type2_value;
 
 	char *p = main_out_buffer[main_out_write_index];
-	if (value > 0){
+	if (value >= 0){
 		char *p_len = buffer + 4;
 		int len = 1;
 		memcpy(p_len, &len, 1);
 	}
 	memcpy(p, buffer, 8);
 
-	if (value > 0){
+	if (value >= 0){
 		char *p_data = p + 8;
 		memcpy(p_data, &value, 1);
 	}
@@ -470,7 +470,7 @@ void put_byte_into_out_buffer(uint8_t type1_value, uint8_t type2_value, uint8_t 
 void put_no_data_into_out_buffer(uint8_t type1_value, uint8_t type2_value){
 	osMutexAcquire(OutMutexHandle, osWaitForever);
 
-	char buffer[8] = {0x4D, 0x43};
+	char buffer[8] = {0x4D, 0x43, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
 	buffer[2] = type1_value;
 	buffer[3] = type2_value;
 
@@ -485,8 +485,67 @@ void put_no_data_into_out_buffer(uint8_t type1_value, uint8_t type2_value){
 	osMutexRelease(OutMutexHandle);
 }
 
+void put_four_bytes_into_out_buffer(uint8_t type1_value, uint8_t type2_value, uint8_t byte_1, uint8_t byte_2, uint8_t byte_3, uint8_t byte_4){
+	osMutexAcquire(OutMutexHandle, osWaitForever);
+
+	char buffer[8] = {0x4D, 0x43, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
+	buffer[2] = type1_value;
+	buffer[3] = type2_value;
+
+	char *p = main_out_buffer[main_out_write_index];
+
+	char *p_len = buffer + 4;
+	int len = 4;
+	memcpy(p_len, &len, 1);
+
+	memcpy(p, buffer, 8);
+
+	char *p_data = p + 8;
+	memcpy(p_data, &byte_1, 1);
+	memcpy(p_data+1, &byte_2, 1);
+	memcpy(p_data+2, &byte_3, 1);
+	memcpy(p_data+3, &byte_4, 1);
+
+	uint8_t pos = main_out_write_index;
+	osMessageQueuePut(MainOutQueueHandle, &pos, 0U, 0U);
+
+	move_main_out_next_write_index();
+
+	osMutexRelease(OutMutexHandle);
+}
+
+void put_five_bytes_into_out_buffer(uint8_t type1_value, uint8_t type2_value, uint8_t byte_1, uint8_t byte_2, uint8_t byte_3, uint8_t byte_4, uint8_t byte_5){
+	osMutexAcquire(OutMutexHandle, osWaitForever);
+
+	char buffer[8] = {0x4D, 0x43, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
+	buffer[2] = type1_value;
+	buffer[3] = type2_value;
+
+	char *p = main_out_buffer[main_out_write_index];
+
+	char *p_len = buffer + 4;
+	int len = 5;
+	memcpy(p_len, &len, 1);
+
+	memcpy(p, buffer, 8);
+
+	char *p_data = p + 8;
+	memcpy(p_data, &byte_1, 1);
+	memcpy(p_data+1, &byte_2, 1);
+	memcpy(p_data+2, &byte_3, 1);
+	memcpy(p_data+3, &byte_4, 1);
+	memcpy(p_data+4, &byte_5, 1);
+
+	uint8_t pos = main_out_write_index;
+	osMessageQueuePut(MainOutQueueHandle, &pos, 0U, 0U);
+
+	move_main_out_next_write_index();
+
+	osMutexRelease(OutMutexHandle);
+}
+
 // idle mode
-uint8_t g_idle_mode = -1; //-1 is wait 0x01-0x01 telegram, 0 is work mode , 1 is sleep mode
+uint8_t g_idle_mode = -1; //-2 is wait down board, -1 is wait 0x01-0x01 telegram, 0 is work mode , 1 is sleep mode
 // power button flag
 uint8_t g_power_btn = 0;
 uint32_t g_power_start = 0;
@@ -496,6 +555,10 @@ uint8_t g_motor_1 = 0;
 uint32_t g_motor_1_start = 0;
 uint8_t g_motor_2 = 0;
 uint32_t g_motor_2_start = 0;
+
+//key
+uint8_t g_key_1_value = 0x02;
+uint8_t g_key_2_value = 0x02;
 
 //Fan
 //uint8_t g_fan_1 = 0;
@@ -554,17 +617,21 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) {
 	}
 	else if(GPIO_Pin == GPIO_PIN_4){  //KEY1_DET //PA4
 		if (HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_4) == GPIO_PIN_SET){
+			g_key_1_value = 0x02;
 			put_byte_into_out_buffer(0x05, 0x01, 0x02);
 		}
 		else if (HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_4) == GPIO_PIN_RESET){
+			g_key_1_value = 0x01;
 			put_byte_into_out_buffer(0x05, 0x01, 0x01);
 		}
 	}
 	else if(GPIO_Pin == GPIO_PIN_2){  //KEY2_DET //PB2
 		if (HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_2) == GPIO_PIN_SET){
+			g_key_2_value = 0x02;
 			put_byte_into_out_buffer(0x05, 0x02, 0x02);
 		}
 		else if (HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_2) == GPIO_PIN_RESET){
+			g_key_2_value = 0x01;
 			put_byte_into_out_buffer(0x05, 0x02, 0x01);
 		}
 	}
@@ -624,6 +691,7 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) {
 // LOGO lamp
 #define LOGO_COUNT 23
 uint8_t g_logo_lamp_flag = 0;
+uint8_t g_logo_lamp_value_on = 0;
 uint32_t g_logo_lamp_color_value;
 uint8_t g_logo_lamp_value[LOGO_COUNT][3];
 uint32_t g_logo_lamp_start = 0;
@@ -631,10 +699,17 @@ uint8_t g_logo_lamp_bit_index = 0;
 uint8_t g_logo_lamp_pos = 0;
 uint8_t g_logo_lamp_index = 0;
 
-// E lamp
-uint8_t g_e_lamp_flag = 0;
-uint8_t g_e_lamp_value[21][3];
-uint32_t side = 0;
+// Energy lamp
+#define ENERGY_COUNT 21
+uint8_t g_energy_lamp_flag = 0;
+uint8_t g_energy_lamp_value_on = 0;
+uint8_t g_energy_lamp_effect = 0;
+uint32_t g_energy_lamp_color_value;
+uint8_t g_energy_lamp_value[ENERGY_COUNT][3];
+uint32_t g_energy_lamp_start = 0;
+uint8_t g_energy_lamp_bit_index = 0;
+uint8_t g_energy_lamp_pos = 0;
+uint8_t g_energy_lamp_index = 0;
 
 // side lamp 1
 uint8_t g_side_1_lamp_flag = 0;
@@ -685,22 +760,83 @@ void fill_logo_lamp_color(){
 }
 
 void fill_logo_lamp_blank(){
-	uint32_t color_value = 0x00;
+	uint8_t i=0;
+	for(i=0; i< LOGO_COUNT; i++){
+		g_logo_lamp_value[i][0] = 0x00;
+		g_logo_lamp_value[i][1] = 0x00;
+		g_logo_lamp_value[i][2] = 0x00;
+	}
+	start_logo_lamp_pwm();
+}
+
+uint8_t compute_energy_final_value(){
+	uint8_t value = g_energy_lamp_value[g_energy_lamp_index][g_energy_lamp_pos];
+	uint8_t bit_value = ( value & ( 0x01 << g_energy_lamp_bit_index ) ) >> g_energy_lamp_bit_index;
+	uint8_t final_val = 1;
+	if (bit_value == 1){
+		final_val = 3;
+	}
+	return final_val;
+}
+
+void start_energy_lamp_pwm(){
+	g_energy_lamp_flag = 1;
+	g_energy_lamp_start = osKernelGetSysTimerCount();
+	g_energy_lamp_pos = 0;
+	g_energy_lamp_index = 0;
+	g_energy_lamp_bit_index = 7;
+
+	uint8_t final_value = compute_energy_final_value();
+	TIM1->CCR3 = (htim1.Init.Period * final_value) / 4u;
+	HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_3);  //TIM1_CH3
+}
+
+void fill_energy_lamp_color(){
+	uint32_t color_value = g_energy_lamp_color_value;
+
 	uint8_t red_value = (color_value & 0xFF0000) >> 16;
 	uint8_t green_value = (color_value & 0x00FF00) >> 8;
 	uint8_t blue_value = (color_value & 0x0000FF);
 
 	uint8_t i=0;
-	for(i=0; i< LOGO_COUNT; i++){
-		g_logo_lamp_value[i][0] = red_value;
-		g_logo_lamp_value[i][1] = green_value;
-		g_logo_lamp_value[i][2] = blue_value;
+	for(i=0; i< ENERGY_COUNT; i++){
+		g_energy_lamp_value[i][0] = red_value;
+		g_energy_lamp_value[i][1] = green_value;
+		g_energy_lamp_value[i][2] = blue_value;
 	}
-	start_logo_lamp_pwm();
+	start_energy_lamp_pwm();
 }
 
+void fill_energy_lamp_blank(){
+	uint8_t i=0;
+	for(i=0; i< ENERGY_COUNT; i++){
+		g_energy_lamp_value[i][0] = 0x00;
+		g_energy_lamp_value[i][1] = 0x00;
+		g_energy_lamp_value[i][2] = 0x00;
+	}
+	start_energy_lamp_pwm();
+}
 
+void fill_energy_lamp_count(uint8_t count){
+	uint32_t color_value = g_energy_lamp_color_value;
 
+	uint8_t red_value = (color_value & 0xFF0000) >> 16;
+	uint8_t green_value = (color_value & 0x00FF00) >> 8;
+	uint8_t blue_value = (color_value & 0x0000FF);
+
+	uint8_t i=0;
+	for(i=0; i< count; i++){
+		g_energy_lamp_value[i][0] = red_value;
+		g_energy_lamp_value[i][1] = green_value;
+		g_energy_lamp_value[i][2] = blue_value;
+	}
+	for(i=count; i< ENERGY_COUNT; i++){
+		g_energy_lamp_value[i][0] = 0x00;
+		g_energy_lamp_value[i][1] = 0x00;
+		g_energy_lamp_value[i][2] = 0x00;
+	}
+	start_energy_lamp_pwm();
+}
 /* USER CODE END 0 */
 
 /**
@@ -1760,6 +1896,9 @@ void StartMainRecvTask(void *argument)
 	g_logo_lamp_color_value = 0xCF0F0F;
 	fill_logo_lamp_color();
 
+	g_energy_lamp_color_value = 0xFF00FF;
+	fill_energy_lamp_color();
+
 	/* Infinite loop */
 	for(;;)
 	{
@@ -1900,6 +2039,17 @@ void StartWorkTask(void *argument)
 					}
 					else if(data_ptr[1] == 0x06 ){
 						HAL_ADC_Stop_IT(&hadc2);
+					}
+					else{
+						PutErrorCode(ErrorQueueHandle,0x03);
+					}
+				}
+				else if(data_ptr[0] == 0x05){
+					if(data_ptr[1] == 0x03 ){ //key_1
+						put_byte_into_out_buffer(0x05, 0x05, g_key_1_value);
+					}
+					else if(data_ptr[1] == 0x04 ){ //key_2
+						put_byte_into_out_buffer(0x05, 0x06, g_key_2_value);
 					}
 					else{
 						PutErrorCode(ErrorQueueHandle,0x03);
@@ -2099,6 +2249,51 @@ void StartWorkTask(void *argument)
 						PutErrorCode(ErrorQueueHandle,0x03);
 					}
 				}
+				else if (data_ptr[0] == 0x0b){
+					if(data_ptr[1] == 0x01 ){
+						char *len_ptr = data_ptr + 2;
+						int len_value = compute_len(len_ptr);
+						char * data_ptr = len_ptr + 4;
+						if(len_value == 5){
+							uint8_t value_on = data_ptr[0];
+							g_energy_lamp_value_on = value_on;
+							uint8_t value_red = data_ptr[1];
+							uint8_t value_green = data_ptr[2];
+							uint8_t value_blue = data_ptr[3];
+							g_energy_lamp_effect = data_ptr[4];
+							if (value_on == 0x01){
+								uint32_t color_value = (value_red << 16) | (value_green << 8) | value_blue;
+								g_logo_lamp_color_value = color_value;
+								if (g_energy_lamp_effect == 0x01){
+									fill_energy_lamp_color();
+								}
+								else if(g_energy_lamp_effect == 0x02){
+									fill_energy_lamp_count(1);
+								}
+							}
+							else if (value_on == 0x02){
+								fill_energy_lamp_blank();
+							}
+							else{
+								PutErrorCode(ErrorQueueHandle,0x08);
+							}
+						}
+						else{
+							PutErrorCode(ErrorQueueHandle,0x05);
+						}
+					}
+					else if (data_ptr[1] == 0x02 ){
+						uint32_t color_value = g_logo_lamp_color_value;
+
+						uint8_t red_value = (color_value & 0xFF0000) >> 16;
+						uint8_t green_value = (color_value & 0x00FF00) >> 8;
+						uint8_t blue_value = (color_value & 0x0000FF);
+						put_five_bytes_into_out_buffer(0x0C, 0x03, g_energy_lamp_value_on, red_value, green_value, blue_value, g_energy_lamp_effect);
+					}
+					else{
+						PutErrorCode(ErrorQueueHandle,0x03);
+					}
+				}
 				else if (data_ptr[0] == 0x0c){
 					if(data_ptr[1] == 0x01 ){
 						char *len_ptr = data_ptr + 2;
@@ -2106,6 +2301,7 @@ void StartWorkTask(void *argument)
 						char * data_ptr = len_ptr + 4;
 						if(len_value == 4){
 							uint8_t value_on = data_ptr[0];
+							g_logo_lamp_value_on = value_on;
 							uint8_t value_red = data_ptr[1];
 							uint8_t value_green = data_ptr[2];
 							uint8_t value_blue = data_ptr[3];
@@ -2124,6 +2320,14 @@ void StartWorkTask(void *argument)
 						else{
 							PutErrorCode(ErrorQueueHandle,0x05);
 						}
+					}
+					else if (data_ptr[1] == 0x02 ){
+						uint32_t color_value = g_logo_lamp_color_value;
+
+						uint8_t red_value = (color_value & 0xFF0000) >> 16;
+						uint8_t green_value = (color_value & 0x00FF00) >> 8;
+						uint8_t blue_value = (color_value & 0x0000FF);
+						put_four_bytes_into_out_buffer(0x0C, 0x03, g_logo_lamp_value_on, red_value, green_value, blue_value);
 					}
 					else{
 						PutErrorCode(ErrorQueueHandle,0x03);
