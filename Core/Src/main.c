@@ -637,7 +637,7 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) {
 			put_byte_into_out_buffer(0x03, 0x02, 0x02);
 		}
 	}
-	else if(GPIO_Pin == GPIO_PIN_0){  //HR1 //PC0
+	else if(GPIO_Pin == GPIO_PIN_0){  //HR1 //PC0  //霍尔检测1
 		if (HAL_GPIO_ReadPin(GPIOC, GPIO_PIN_0) == GPIO_PIN_SET){
 			put_byte_into_out_buffer(0x02, 0x01, 0x01);
 		}
@@ -647,22 +647,22 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) {
 	}
 	else if(GPIO_Pin == GPIO_PIN_4){  //KEY1_DET //PA4
 		if (HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_4) == GPIO_PIN_SET){
-			g_key_1_value = 0x02;
-			put_byte_into_out_buffer(0x05, 0x01, 0x02);
-		}
-		else if (HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_4) == GPIO_PIN_RESET){
 			g_key_1_value = 0x01;
 			put_byte_into_out_buffer(0x05, 0x01, 0x01);
+		}
+		else if (HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_4) == GPIO_PIN_RESET){
+			g_key_1_value = 0x02;
+			put_byte_into_out_buffer(0x05, 0x01, 0x02);
 		}
 	}
 	else if(GPIO_Pin == GPIO_PIN_2){  //KEY2_DET //PB2
 		if (HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_2) == GPIO_PIN_SET){
-			g_key_2_value = 0x02;
-			put_byte_into_out_buffer(0x05, 0x02, 0x02);
-		}
-		else if (HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_2) == GPIO_PIN_RESET){
 			g_key_2_value = 0x01;
 			put_byte_into_out_buffer(0x05, 0x02, 0x01);
+		}
+		else if (HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_2) == GPIO_PIN_RESET){
+			g_key_2_value = 0x02;
+			put_byte_into_out_buffer(0x05, 0x02, 0x02);
 		}
 	}
 	else if(GPIO_Pin == GPIO_PIN_14){  //PWR_DOWN //PB14
@@ -1847,13 +1847,13 @@ static void MX_GPIO_Init(void)
   /*Configure GPIO pins : PA1 PA4 */
   GPIO_InitStruct.Pin = GPIO_PIN_1|GPIO_PIN_4;
   GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING_FALLING;
-  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Pull = GPIO_PULLUP;
   HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
 
   /*Configure GPIO pins : PB2 PB14 */
   GPIO_InitStruct.Pin = GPIO_PIN_2|GPIO_PIN_14;
   GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING_FALLING;
-  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Pull = GPIO_PULLUP;
   HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
 
   /*Configure GPIO pins : PB15 PB4 PB7 PB9 */
