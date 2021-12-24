@@ -154,7 +154,7 @@ void StartDownBoardTask(void *argument);
 /* USER CODE BEGIN 0 */
 
 // idle mode
-uint8_t g_idle_mode = -2; //-2 is wait down board, -1 is wait 0x01-0x01 telegram, 0 is work mode , 1 is sleep mode
+int8_t g_idle_mode = -2; //-2 is wait down board, -1 is wait 0x01-0x01 telegram, 0 is work mode , 1 is sleep mode
 uint32_t g_wait_down_board_start =0;
 uint8_t g_down_borad_init_data_ptr[8];
 
@@ -337,11 +337,13 @@ void receive_down_data_part(){
 		if (g_idle_mode == -2){ //when first communication with down board is finish, change mode.
 			g_idle_mode = -1;
 			set_down_head_it();
+			//PutErrorCode(ErrorQueueHandle,0xE8);
 			return;
 		}
 
 		if (g_idle_mode == -1){ //when mode is -1, ignore data from down board.
 			set_down_head_it();
+			//PutErrorCode(ErrorQueueHandle,0xE8);
 			return;
 		}
 
@@ -1937,9 +1939,9 @@ void StartMainRecvTask(void *argument)
 		if (g_idle_mode == -2){
 			uint32_t tick;
 			tick = osKernelGetSysTimerCount();
-			uint32_t diff = tick - g_motor_1_start;
+			uint32_t diff = tick - g_wait_down_board_start;
 			uint32_t freq = osKernelGetSysTimerFreq();
-			uint32_t timeout_value = 1 * freq;
+			uint32_t timeout_value = 10 * freq;
 			if (diff >= timeout_value){
 				g_wait_down_board_start = osKernelGetSysTimerCount();
 				HAL_UART_Transmit(&huart4,(uint8_t*)g_down_borad_init_data_ptr,0x08,0xffff);
