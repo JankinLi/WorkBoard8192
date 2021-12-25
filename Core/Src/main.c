@@ -153,6 +153,22 @@ void StartDownBoardTask(void *argument);
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
 
+uint8_t g_hall_detect_value = 0;
+
+uint8_t g_step_flag = 0;  //flag for 0x01
+
+uint32_t g_step_count = 0;
+uint32_t g_step_start = 0;  //time-stamp
+
+uint32_t g_step_value = 0;	//value of circle
+uint32_t g_old_step_value = 0;
+
+uint32_t g_strength_value = 0;  //value of strength
+uint32_t g_old_strength_value = 0;
+void HAL_LPTIM_AutoReloadMatchCallBack(LPTIM_HandleTypeDef *hlptim){
+	g_step_count++;
+}
+
 // idle mode
 int8_t g_idle_mode = -2; //-2 is wait down board, -1 is wait 0x01-0x01 telegram, 0 is work mode , 1 is sleep mode
 uint32_t g_wait_down_board_start =0;
@@ -563,6 +579,37 @@ void put_five_bytes_into_out_buffer(uint8_t type1_value, uint8_t type2_value, ui
 	osMutexRelease(OutMutexHandle);
 }
 
+void put_two_int_and_one_byte_into_out_buffer(uint8_t type1_value, uint8_t type2_value, uint32_t val_1, uint32_t val_2, uint8_t val_3){
+	osMutexAcquire(OutMutexHandle, osWaitForever);
+
+	char buffer[8] = {0x4D, 0x43, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
+	buffer[2] = type1_value;
+	buffer[3] = type2_value;
+
+	char *p = main_out_buffer[main_out_write_index];
+
+	char *p_len = buffer + 4;
+	int len = 9;
+	memcpy(p_len, &len, 1);
+
+	memcpy(p, buffer, 8);
+
+	char *p_data = p + 8;
+
+	memcpy(p_data, &val_1, 4);
+
+	memcpy(p_data + 4, &val_2, 4);
+
+	memcpy(p_data + 8, &val_3, 1);
+
+	uint8_t pos = main_out_write_index;
+	osMessageQueuePut(MainOutQueueHandle, &pos, 0U, 0U);
+
+	move_main_out_next_write_index();
+
+	osMutexRelease(OutMutexHandle);
+}
+
 void fill_down_board_init_telegram(){
 	memset(g_down_borad_init_data_ptr, 0x00, 8);
 	uint8_t *p = g_down_borad_init_data_ptr;
@@ -600,20 +647,20 @@ uint8_t g_fan_3_value = 0x00;
 uint8_t g_fan_4_value = 0x00;
 
 
+
+
 // ADC
-uint16_t ADC_VALUE = 0;  //value of strength
 void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc)
 {
 	if (hadc->Instance == ADC1){  //ANGLE_DET //PB0
 		// Read & Update The ADC Result
-		ADC_VALUE = HAL_ADC_GetValue(&hadc1);
+		uint32_t ADC_VALUE = HAL_ADC_GetValue(&hadc1);
 
 		put_int_into_out_buffer(0x04, 0x01, ADC_VALUE);
 	}
 	else if (hadc->Instance == ADC2){ //TORQE //PA0
-		ADC_VALUE = HAL_ADC_GetValue(&hadc2);
-
-		put_int_into_out_buffer(0x01, 0x04, ADC_VALUE);
+		uint32_t ADC_VALUE = HAL_ADC_GetValue(&hadc2);
+		g_strength_value = ADC_VALUE;
 	}
 }
 
@@ -637,11 +684,13 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) {
 			put_byte_into_out_buffer(0x03, 0x02, 0x02);
 		}
 	}
-	else if(GPIO_Pin == GPIO_PIN_0){  //HR1 //PC0  //霍尔检测1
+	else if(GPIO_Pin == GPIO_PIN_0){  //HR1 //PC0 //Hall detector 1
 		if (HAL_GPIO_ReadPin(GPIOC, GPIO_PIN_0) == GPIO_PIN_SET){
+			g_hall_detect_value = 0x01;
 			put_byte_into_out_buffer(0x02, 0x01, 0x01);
 		}
 		else if (HAL_GPIO_ReadPin(GPIOC, GPIO_PIN_0) == GPIO_PIN_RESET){
+			g_hall_detect_value = 0x02;
 			put_byte_into_out_buffer(0x02, 0x01, 0x02);
 		}
 	}
@@ -652,7 +701,7 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) {
 		}
 		else if (HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_4) == GPIO_PIN_RESET){
 			g_key_1_value = 0x02;
-			put_byte_into_out_buffer(0x05, 0x01, 0x02);
+			//put_byte_into_out_buffer(0x05, 0x01, 0x02);
 		}
 	}
 	else if(GPIO_Pin == GPIO_PIN_2){  //KEY2_DET //PB2
@@ -662,7 +711,7 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) {
 		}
 		else if (HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_2) == GPIO_PIN_RESET){
 			g_key_2_value = 0x02;
-			put_byte_into_out_buffer(0x05, 0x02, 0x02);
+			//put_byte_into_out_buffer(0x05, 0x02, 0x02);
 		}
 	}
 	else if(GPIO_Pin == GPIO_PIN_14){  //PWR_DOWN //PB14
@@ -1201,10 +1250,10 @@ static void MX_LPTIM1_Init(void)
   hlptim1.Init.Clock.Source = LPTIM_CLOCKSOURCE_APBCLOCK_LPOSC;
   hlptim1.Init.Clock.Prescaler = LPTIM_PRESCALER_DIV1;
   hlptim1.Init.Trigger.Source = LPTIM_TRIGSOURCE_0;
-  hlptim1.Init.Trigger.ActiveEdge = LPTIM_ACTIVEEDGE_RISING;
+  hlptim1.Init.Trigger.ActiveEdge = LPTIM_ACTIVEEDGE_FALLING;
   hlptim1.Init.Trigger.SampleTime = LPTIM_TRIGSAMPLETIME_DIRECTTRANSITION;
   hlptim1.Init.OutputPolarity = LPTIM_OUTPUTPOLARITY_HIGH;
-  hlptim1.Init.UpdateMode = LPTIM_UPDATE_IMMEDIATE;
+  hlptim1.Init.UpdateMode = LPTIM_UPDATE_ENDOFPERIOD;
   hlptim1.Init.CounterSource = LPTIM_COUNTERSOURCE_INTERNAL;
   hlptim1.Init.Input1Source = LPTIM_INPUT1SOURCE_GPIO;
   hlptim1.Init.Input2Source = LPTIM_INPUT2SOURCE_GPIO;
@@ -1936,13 +1985,35 @@ void StartMainRecvTask(void *argument)
 	/* Infinite loop */
 	for(;;)
 	{
-		if (g_idle_mode == -2){
+		if (g_step_flag == 1 && g_idle_mode >=0){
+			uint32_t tick;
+			tick = osKernelGetSysTimerCount();
+			uint32_t diff = tick - g_step_start;
+			uint32_t freq = osKernelGetSysTimerFreq();
+			uint32_t timeout_value = 1 * freq;
+			if (diff >= timeout_value){
+				g_step_start = osKernelGetSysTimerCount();
+				g_step_value = g_step_count;
+				g_step_count = 0;
+				if ((g_step_value != g_old_step_value) || (g_strength_value!=g_old_strength_value)){
+					put_two_int_and_one_byte_into_out_buffer(0x01, 0x04, g_step_value, g_strength_value, g_hall_detect_value);
+					if(g_step_value != g_old_step_value){
+						g_old_step_value = g_step_value;
+					}
+					if (g_strength_value!=g_old_strength_value){
+						g_old_strength_value = g_strength_value;
+					}
+				}
+			}
+		}
+
+		if (g_idle_mode == -2){  //when MCU startup with power, send initialize telegram into down board, wait it reply.
 			uint32_t tick;
 			tick = osKernelGetSysTimerCount();
 			uint32_t diff = tick - g_wait_down_board_start;
 			uint32_t freq = osKernelGetSysTimerFreq();
-			uint32_t timeout_value = 10 * freq;
-			if (diff >= timeout_value){
+			uint32_t timeout_value = 5 * freq;	//wait 5 seconds for retry.
+			if (diff >= timeout_value){	//retry to send initialize telegram into down board, wait it reply
 				g_wait_down_board_start = osKernelGetSysTimerCount();
 				HAL_UART_Transmit(&huart4,(uint8_t*)g_down_borad_init_data_ptr,0x08,0xffff);
 			}
@@ -2078,13 +2149,21 @@ void StartWorkTask(void *argument)
 				if (data_ptr[0] == 0x01){
 					if(data_ptr[1] == 0x01 ){
 						g_idle_mode = 0;  // work mode
-						put_int_into_out_buffer(0x01, 0x02, 0x1024);
+						put_int_into_out_buffer(0x01, 0x02, 1024);
 
+					}
+					else if(data_ptr[1] == 0x03){
+						g_step_count = 0;
+						HAL_LPTIM_Counter_Start_IT(&hlptim1, 32); //a circle generate 32 pulse
+						g_step_start = osKernelGetSysTimerCount();
 						// Start ADC Conversion
 						HAL_ADC_Start_IT(&hadc2);
+						g_step_flag = 1;
 					}
-					else if(data_ptr[1] == 0x06 ){
+					else if(data_ptr[1] == 0x04 ){
 						HAL_ADC_Stop_IT(&hadc2);
+						HAL_LPTIM_Counter_Stop_IT(&hlptim1);
+						g_step_flag = 0;
 					}
 					else{
 						PutErrorCode(ErrorQueueHandle,0x03);
