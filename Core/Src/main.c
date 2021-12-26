@@ -154,17 +154,18 @@ void StartDownBoardTask(void *argument);
 /* USER CODE BEGIN 0 */
 
 uint8_t g_hall_detect_value = 0;
+uint8_t g_hall_detect_report_flag = 0x00;
 
 uint8_t g_step_flag = 0;  //flag for 0x01
 
 uint32_t g_step_count = 0;
-uint32_t g_step_start = 0;  //time-stamp
+uint32_t g_step_start = 0;  		//time-stamp
 
-uint32_t g_step_value = 0;	//value of circle
-uint32_t g_old_step_value = 0;
+uint32_t g_step_value = 0;			//value of circle
+uint32_t g_old_step_value = 0;		//temporary value of circle
 
-uint32_t g_strength_value = 0;  //value of strength
-uint32_t g_old_strength_value = 0;
+uint32_t g_strength_value = 0;  	//value of strength
+uint32_t g_old_strength_value = 0;	//temporary value of strength
 void HAL_LPTIM_AutoReloadMatchCallBack(LPTIM_HandleTypeDef *hlptim){
 	g_step_count++;
 }
@@ -173,6 +174,9 @@ void HAL_LPTIM_AutoReloadMatchCallBack(LPTIM_HandleTypeDef *hlptim){
 int8_t g_idle_mode = -2; //-2 is wait down board, -1 is wait 0x01-0x01 telegram, 0 is work mode , 1 is sleep mode
 uint32_t g_wait_down_board_start =0;
 uint8_t g_down_borad_init_data_ptr[8];
+
+uint8_t g_exit_idle_report_flag = 0x00;
+uint8_t g_shudown_report_flag = 0x00;
 
 // main COM port
 unsigned char main_head_flag = 0;
@@ -635,7 +639,10 @@ uint32_t g_motor_2_start = 0;
 
 //key
 uint8_t g_key_1_value = 0x02;
+uint8_t g_key_1_report_flag = 0x00;
+
 uint8_t g_key_2_value = 0x02;
+uint8_t g_key_2_report_flag = 0x00;
 
 //Fan
 //uint8_t g_fan_1 = 0;
@@ -646,7 +653,9 @@ uint8_t g_fan_2_value = 0x00;
 uint8_t g_fan_3_value = 0x00;
 uint8_t g_fan_4_value = 0x00;
 
-
+// Angle detect.
+uint8_t g_angle_report_flag = 0x00;
+uint32_t g_angle_detect_value = 0x00;
 
 
 // ADC
@@ -655,8 +664,8 @@ void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc)
 	if (hadc->Instance == ADC1){  //ANGLE_DET //PB0
 		// Read & Update The ADC Result
 		uint32_t ADC_VALUE = HAL_ADC_GetValue(&hadc1);
-
-		put_int_into_out_buffer(0x04, 0x01, ADC_VALUE);
+		g_angle_report_flag = 0x01;
+		g_angle_detect_value = ADC_VALUE;
 	}
 	else if (hadc->Instance == ADC2){ //TORQE //PA0
 		uint32_t ADC_VALUE = HAL_ADC_GetValue(&hadc2);
@@ -664,40 +673,56 @@ void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc)
 	}
 }
 
+uint8_t g_human_rader_1_report_flag = 0;
+uint8_t g_human_rader_1_report_value = 0;
+
+
+uint8_t g_human_rader_2_report_flag = 0;
+uint8_t g_human_rader_2_report_value = 0;
 
 //EXTI Callback
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) {
 	if (GPIO_Pin == GPIO_PIN_13){  //Human radar 1	//PC13
 		if (HAL_GPIO_ReadPin(GPIOC, GPIO_PIN_13) == GPIO_PIN_SET){
-			put_byte_into_out_buffer(0x03, 0x01, 0x01);
+			g_human_rader_1_report_flag = 0x01;
+			g_human_rader_1_report_value = 0x01;
 			//__HAL_GPIO_EXTI_CLEAR_IT(GPIO_PIN_13);            //清除引脚中断
 		}
 		else if (HAL_GPIO_ReadPin(GPIOC, GPIO_PIN_13) == GPIO_PIN_RESET){
-			put_byte_into_out_buffer(0x03, 0x01, 0x02);
+			g_human_rader_1_report_flag = 0x01;
+			g_human_rader_1_report_value = 0x02;
+			//put_byte_into_out_buffer(0x03, 0x01, 0x02);
 		}
 	}
 	else if (GPIO_Pin == GPIO_PIN_1){ //Human radar 2  //PA1
 		if (HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_1) == GPIO_PIN_SET){
-			put_byte_into_out_buffer(0x03, 0x02, 0x01);
+			//put_byte_into_out_buffer(0x03, 0x02, 0x01);
+			g_human_rader_2_report_flag = 0x01;
+			g_human_rader_2_report_value = 0x01;
 		}
 		else if (HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_1) == GPIO_PIN_RESET){
-			put_byte_into_out_buffer(0x03, 0x02, 0x02);
+			//put_byte_into_out_buffer(0x03, 0x02, 0x02);
+			g_human_rader_2_report_flag = 0x01;
+			g_human_rader_2_report_value = 0x02;
 		}
 	}
 	else if(GPIO_Pin == GPIO_PIN_0){  //HR1 //PC0 //Hall detector 1
 		if (HAL_GPIO_ReadPin(GPIOC, GPIO_PIN_0) == GPIO_PIN_SET){
 			g_hall_detect_value = 0x01;
-			put_byte_into_out_buffer(0x02, 0x01, 0x01);
+			g_hall_detect_report_flag = 0x01;
+			//put_byte_into_out_buffer(0x02, 0x01, 0x01);
 		}
 		else if (HAL_GPIO_ReadPin(GPIOC, GPIO_PIN_0) == GPIO_PIN_RESET){
 			g_hall_detect_value = 0x02;
-			put_byte_into_out_buffer(0x02, 0x01, 0x02);
+			g_hall_detect_report_flag = 0x01;
+			//put_byte_into_out_buffer(0x02, 0x01, 0x02);
 		}
 	}
 	else if(GPIO_Pin == GPIO_PIN_4){  //KEY1_DET //PA4
 		if (HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_4) == GPIO_PIN_SET){
 			g_key_1_value = 0x01;
-			put_byte_into_out_buffer(0x05, 0x01, 0x01);
+			//put_byte_into_out_buffer(0x05, 0x01, 0x01);
+			g_key_1_report_flag = 0x01;
 		}
 		else if (HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_4) == GPIO_PIN_RESET){
 			g_key_1_value = 0x02;
@@ -707,7 +732,8 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) {
 	else if(GPIO_Pin == GPIO_PIN_2){  //KEY2_DET //PB2
 		if (HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_2) == GPIO_PIN_SET){
 			g_key_2_value = 0x01;
-			put_byte_into_out_buffer(0x05, 0x02, 0x01);
+			g_key_2_report_flag = 0x01;
+			//put_byte_into_out_buffer(0x05, 0x02, 0x01);
 		}
 		else if (HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_2) == GPIO_PIN_RESET){
 			g_key_2_value = 0x02;
@@ -736,11 +762,13 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) {
 					uint32_t timeout_value_3_second = 3 * g_fan_1_value * freq;
 					uint32_t timeout_value_10_second = 10 * g_fan_1_value * freq;
 					if (diff < timeout_value_1_second){
-						put_no_data_into_out_buffer(0x011, 0x05);
+						//put_no_data_into_out_buffer(0x011, 0x05);
+						g_exit_idle_report_flag = 0x01;
 						g_idle_mode = 0;
 					}
 					else if (diff > timeout_value_3_second && diff < timeout_value_10_second){
-						put_no_data_into_out_buffer(0x011, 0x01);
+						//put_no_data_into_out_buffer(0x011, 0x01);
+						g_shudown_report_flag = 0x01;
 					}
 					else if( diff >= timeout_value_10_second){
 						HAL_GPIO_WritePin(GPIOA, GPIO_PIN_8, GPIO_PIN_RESET);
@@ -756,7 +784,8 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) {
 					uint32_t timeout_value_3_second = 3 * g_fan_1_value * freq;
 					uint32_t timeout_value_10_second = 10 * g_fan_1_value * freq;
 					if (diff > timeout_value_3_second && diff < timeout_value_10_second){
-						put_no_data_into_out_buffer(0x011, 0x01);
+						//put_no_data_into_out_buffer(0x011, 0x01);
+						g_shudown_report_flag = 0x01;
 					}
 					else if( diff >= timeout_value_10_second){
 						HAL_GPIO_WritePin(GPIOA, GPIO_PIN_8, GPIO_PIN_RESET);
@@ -2005,6 +2034,46 @@ void StartMainRecvTask(void *argument)
 					}
 				}
 			}
+		}
+
+		if (g_angle_report_flag == 0x01){
+			g_angle_report_flag = 0x00;
+			put_int_into_out_buffer(0x04, 0x01, g_angle_detect_value);
+		}
+
+		if (g_human_rader_1_report_flag == 0x01){
+			g_human_rader_1_report_flag = 0x00;
+			put_byte_into_out_buffer(0x03, 0x01, g_human_rader_1_report_value);
+		}
+
+		if (g_human_rader_2_report_flag == 0x01){
+			g_human_rader_2_report_flag = 0x02;
+			put_byte_into_out_buffer(0x03, 0x02, g_human_rader_2_report_value);
+		}
+
+		if (g_hall_detect_report_flag == 0x01){
+			g_hall_detect_report_flag = 0x00;
+			put_byte_into_out_buffer(0x02, 0x01, g_hall_detect_value);
+		}
+
+		if (g_key_1_report_flag == 0x01){
+			g_key_1_report_flag = 0x00;
+			put_byte_into_out_buffer(0x05, 0x01, g_key_1_value);
+		}
+
+		if (g_key_2_report_flag == 0x01){
+			g_key_2_report_flag = 0x00;
+			put_byte_into_out_buffer(0x05, 0x02, g_key_2_value);
+		}
+
+		if (g_exit_idle_report_flag == 0x01){
+			g_exit_idle_report_flag = 0x00;
+			put_no_data_into_out_buffer(0x011, 0x05);  //notify exit idle mode
+		}
+
+		if (g_shudown_report_flag == 0x01){
+			g_shudown_report_flag = 0x00;
+			put_no_data_into_out_buffer(0x011, 0x01);  // notify start process of shutdown
 		}
 
 		if (g_idle_mode == -2){  //when MCU startup with power, send initialize telegram into down board, wait it reply.
