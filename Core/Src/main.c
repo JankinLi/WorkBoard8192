@@ -2217,7 +2217,6 @@ void StartWorkTask(void *argument)
 				char* data_ptr = main_data_buffer[pos];
 				if (data_ptr[0] == 0x01){
 					if(data_ptr[1] == 0x01 ){
-						g_idle_mode = 0;  // work mode
 						put_int_into_out_buffer(0x01, 0x02, 1024);
 
 					}
@@ -2429,20 +2428,6 @@ void StartWorkTask(void *argument)
 						PutErrorCode(ErrorQueueHandle,0x03);
 					}
 				}
-				else if(data_ptr[0] == 0x11){
-					if(data_ptr[1] == 0x02 ){
-						HAL_GPIO_WritePin(GPIOA, GPIO_PIN_8, GPIO_PIN_RESET);
-					}
-					else if(data_ptr[1] == 0x02 ){
-						HAL_GPIO_WritePin(GPIOA, GPIO_PIN_8, GPIO_PIN_RESET);
-					}
-					else if(data_ptr[1] == 0x04 ){
-						g_idle_mode = 1; //sleep mode
-					}
-					else{
-						PutErrorCode(ErrorQueueHandle,0x03);
-					}
-				}
 				else if (data_ptr[0] == 0x0b){
 					if(data_ptr[1] == 0x01 ){
 						char *len_ptr = data_ptr + 2;
@@ -2536,6 +2521,25 @@ void StartWorkTask(void *argument)
 						if (ret != HAL_OK){
 							PutErrorCode(ErrorQueueHandle,0xEE);
 						}
+					}
+					else{
+						PutErrorCode(ErrorQueueHandle,0x03);
+					}
+				}
+				else if(data_ptr[0] == 0x10){
+					g_idle_mode = 0;  // work mode
+					put_no_data_into_out_buffer(0x010, 0x02);
+
+				}
+				else if(data_ptr[0] == 0x11){
+					if(data_ptr[1] == 0x02 ){
+						HAL_GPIO_WritePin(GPIOA, GPIO_PIN_8, GPIO_PIN_RESET);
+					}
+					else if(data_ptr[1] == 0x03 ){
+						HAL_GPIO_WritePin(GPIOA, GPIO_PIN_8, GPIO_PIN_RESET);
+					}
+					else if(data_ptr[1] == 0x04 ){
+						g_idle_mode = 1; //sleep mode
 					}
 					else{
 						PutErrorCode(ErrorQueueHandle,0x03);
