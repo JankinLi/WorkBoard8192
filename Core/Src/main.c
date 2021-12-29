@@ -166,6 +166,9 @@ uint32_t g_old_step_value = 0;		//temporary value of circle
 
 uint32_t g_strength_value = 0;  	//value of strength
 uint32_t g_old_strength_value = 0;	//temporary value of strength
+uint8_t g_strength_adc_flag = 0;
+uint32_t g_strength_adc_start = 0;
+
 void HAL_LPTIM_AutoReloadMatchCallBack(LPTIM_HandleTypeDef *hlptim){
 	g_step_count++;
 }
@@ -656,6 +659,8 @@ uint8_t g_fan_4_value = 0x00;
 // Angle detect.
 uint8_t g_angle_report_flag = 0x00;
 uint32_t g_angle_detect_value = 0x00;
+uint8_t g_angle_adc_flag = 0x00;
+uint32_t g_angle_adc_start = 0;
 
 
 // ADC
@@ -663,13 +668,24 @@ void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc)
 {
 	if (hadc->Instance == ADC1){  //ANGLE_DET //PB0
 		// Read & Update The ADC Result
+		HAL_ADC_Stop_IT(&hadc1);
 		uint32_t ADC_VALUE = HAL_ADC_GetValue(&hadc1);
+
+		uint32_t Value_1=(uint32_t)((ADC_VALUE*3.3/4096)*1000);
+		g_angle_detect_value = Value_1;
 		g_angle_report_flag = 0x01;
-		g_angle_detect_value = ADC_VALUE;
+
+		g_angle_adc_start = osKernelGetSysTimerCount();
+		g_angle_adc_flag = 0x01;
 	}
 	else if (hadc->Instance == ADC2){ //TORQE //PA0
+		HAL_ADC_Stop_IT(&hadc2);
 		uint32_t ADC_VALUE = HAL_ADC_GetValue(&hadc2);
-		g_strength_value = ADC_VALUE;
+
+		uint32_t Value_1=(uint32_t)((ADC_VALUE*3.3/4096)*1000);
+		g_strength_value = Value_1;
+		g_strength_adc_start = osKernelGetSysTimerCount();
+		g_strength_adc_flag = 1;
 	}
 }
 
@@ -1159,7 +1175,7 @@ static void MX_ADC1_Init(void)
   /** Common config
   */
   hadc1.Instance = ADC1;
-  hadc1.Init.ClockPrescaler = ADC_CLOCK_SYNC_PCLK_DIV4;
+  hadc1.Init.ClockPrescaler = ADC_CLOCK_ASYNC_DIV6;
   hadc1.Init.Resolution = ADC_RESOLUTION_12B;
   hadc1.Init.DataAlign = ADC_DATAALIGN_RIGHT;
   hadc1.Init.GainCompensation = 0;
@@ -1223,7 +1239,7 @@ static void MX_ADC2_Init(void)
   /** Common config
   */
   hadc2.Instance = ADC2;
-  hadc2.Init.ClockPrescaler = ADC_CLOCK_SYNC_PCLK_DIV4;
+  hadc2.Init.ClockPrescaler = ADC_CLOCK_ASYNC_DIV6;
   hadc2.Init.Resolution = ADC_RESOLUTION_12B;
   hadc2.Init.DataAlign = ADC_DATAALIGN_RIGHT;
   hadc2.Init.GainCompensation = 0;
@@ -1922,10 +1938,10 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
 
-  /*Configure GPIO pins : PA1 PA4 */
-  GPIO_InitStruct.Pin = GPIO_PIN_1|GPIO_PIN_4;
+  /*Configure GPIO pin : PA1 */
+  GPIO_InitStruct.Pin = GPIO_PIN_1;
   GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING_FALLING;
-  GPIO_InitStruct.Pull = GPIO_PULLUP;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
   HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
 
   /*Configure GPIO pins : PB2 PB14 */
@@ -1964,9 +1980,6 @@ static void MX_GPIO_Init(void)
 
   HAL_NVIC_SetPriority(EXTI2_IRQn, 5, 0);
   HAL_NVIC_EnableIRQ(EXTI2_IRQn);
-
-  HAL_NVIC_SetPriority(EXTI4_IRQn, 5, 0);
-  HAL_NVIC_EnableIRQ(EXTI4_IRQn);
 
   HAL_NVIC_SetPriority(EXTI15_10_IRQn, 5, 0);
   HAL_NVIC_EnableIRQ(EXTI15_10_IRQn);
@@ -2014,6 +2027,18 @@ void StartMainRecvTask(void *argument)
 	/* Infinite loop */
 	for(;;)
 	{
+		if (g_strength_adc_flag == 1){
+			uint32_t tick;
+			tick = osKernelGetSysTimerCount();
+			uint32_t diff = tick - g_strength_adc_start;
+			uint32_t freq = osKernelGetSysTimerFreq();
+			uint32_t timeout_value = 0.05 * freq;
+			if (diff >= timeout_value){
+				g_strength_adc_flag = 0;
+				HAL_ADC_Start_IT(&hadc2);
+			}
+		}
+
 		if (g_step_flag == 1 && g_idle_mode >=0){
 			uint32_t tick;
 			tick = osKernelGetSysTimerCount();
@@ -2039,6 +2064,18 @@ void StartMainRecvTask(void *argument)
 		if (g_angle_report_flag == 0x01){
 			g_angle_report_flag = 0x00;
 			put_int_into_out_buffer(0x04, 0x01, g_angle_detect_value);
+		}
+
+		if(g_angle_adc_flag == 0x01){
+			uint32_t tick;
+			tick = osKernelGetSysTimerCount();
+			uint32_t diff = tick - g_angle_adc_start;
+			uint32_t freq = osKernelGetSysTimerFreq();
+			uint32_t timeout_value = 0.05 * freq;
+			if (diff >= timeout_value){
+				g_angle_adc_flag = 0x00;
+				HAL_ADC_Start_IT(&hadc1);
+			}
 		}
 
 		if (g_human_rader_1_report_flag == 0x01){
@@ -2231,6 +2268,7 @@ void StartWorkTask(void *argument)
 					else if(data_ptr[1] == 0x04 ){
 						HAL_ADC_Stop_IT(&hadc2);
 						HAL_LPTIM_Counter_Stop_IT(&hlptim1);
+						g_strength_adc_flag = 0;
 						g_step_flag = 0;
 					}
 					else{
@@ -2529,7 +2567,6 @@ void StartWorkTask(void *argument)
 				else if(data_ptr[0] == 0x10){
 					g_idle_mode = 0;  // work mode
 					put_no_data_into_out_buffer(0x010, 0x02);
-
 				}
 				else if(data_ptr[0] == 0x11){
 					if(data_ptr[1] == 0x02 ){
@@ -2540,6 +2577,8 @@ void StartWorkTask(void *argument)
 					}
 					else if(data_ptr[1] == 0x04 ){
 						g_idle_mode = 1; //sleep mode
+						HAL_ADC_Stop_IT(&hadc2);
+						g_strength_adc_flag = 0x00;
 					}
 					else{
 						PutErrorCode(ErrorQueueHandle,0x03);
