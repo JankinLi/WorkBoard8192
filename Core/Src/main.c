@@ -186,11 +186,11 @@ unsigned char main_head_flag = 0;
 char main_head_buf[8];
 
 unsigned char main_body_flag = 0;
-char main_body_buf[512];
+char main_body_buf[256];
 
 //main receive buffer
 #define MAIN_BUFFER_COUNT 4
-#define MAIN_BUFFER_MAX 512
+#define MAIN_BUFFER_MAX 256
 char main_data_buffer[MAIN_BUFFER_COUNT][MAIN_BUFFER_MAX];
 
 unsigned char main_data_write_index=0;
@@ -395,14 +395,9 @@ void receive_down_data_part(){
 	HAL_UART_Receive_IT(&huart4,(uint8_t*)p_down_current, 1);
 }
 
-//health COM Device
-unsigned char bt_head_flag = 0;
-char bt_head_buf[2];
-
-void receive_bt_head(){
-	//TODO
-	return;
-}
+//FTMS COM Device
+uint8_t ftms_head_flag=0;
+//TODO
 
 void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 {
@@ -432,9 +427,8 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 		return;
 	}
 
-	if (huart->Instance == USART3){ //BT COM
-		if (1 == bt_head_flag){
-			receive_bt_head();
+	if (huart->Instance == USART3){ //FTMS COM
+		if (1 == ftms_head_flag){
 			return;
 		}
 	}
@@ -442,7 +436,7 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 
 //output buffer
 #define MAIN_OUT_BUFFER_COUNT 4
-char main_out_buffer[MAIN_OUT_BUFFER_COUNT][512];
+char main_out_buffer[MAIN_OUT_BUFFER_COUNT][256];
 
 unsigned char main_out_write_index = 0;
 
