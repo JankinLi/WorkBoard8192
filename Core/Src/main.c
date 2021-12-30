@@ -181,6 +181,18 @@ uint8_t g_down_borad_init_data_ptr[8];
 uint8_t g_exit_idle_report_flag = 0x00;
 uint8_t g_shudown_report_flag = 0x00;
 
+void update_retry_down_board_communication(){
+	uint32_t tick;
+	tick = osKernelGetSysTimerCount();
+	uint32_t diff = tick - g_wait_down_board_start;
+	uint32_t freq = osKernelGetSysTimerFreq();
+	uint32_t timeout_value = 5 * freq;	//wait 5 seconds for retry.
+	if (diff >= timeout_value){	//retry to send initialize telegram into down board, wait it reply
+		g_wait_down_board_start = osKernelGetSysTimerCount();
+		HAL_UART_Transmit(&huart4,(uint8_t*)g_down_borad_init_data_ptr,0x08,0xffff);
+	}
+}
+
 // main COM port
 unsigned char main_head_flag = 0;
 char main_head_buf[8];
@@ -634,6 +646,61 @@ uint32_t g_motor_1_start = 0;
 uint8_t g_motor_2 = 0;
 uint32_t g_motor_2_start = 0;
 
+void update_motor_1_action(){
+	if (g_motor_1 == 1){
+		uint32_t tick;
+		tick = osKernelGetSysTimerCount();
+		uint32_t diff = tick - g_motor_1_start;
+		uint32_t freq = osKernelGetSysTimerFreq();
+		uint32_t timeout_value = 1 * freq;
+		if (diff >= timeout_value){
+			HAL_GPIO_WritePin(GPIOB, GPIO_PIN_9, GPIO_PIN_RESET);
+			g_motor_1 = 2;
+			g_motor_1_start = osKernelGetSysTimerCount();
+		}
+	}
+	else if(g_motor_1 == 2){
+		uint32_t tick;
+		tick = osKernelGetSysTimerCount();
+		uint32_t diff = tick - g_motor_1_start;
+		uint32_t freq = osKernelGetSysTimerFreq();
+		uint32_t timeout_value = 1 * freq;
+		if (diff >= timeout_value){
+			HAL_GPIO_WritePin(GPIOB, GPIO_PIN_9, GPIO_PIN_SET);
+			g_motor_1 = 1;
+			g_motor_1_start = osKernelGetSysTimerCount();
+		}
+	}
+}
+
+void update_motor_2_action(){
+	if (g_motor_2 == 1){
+		uint32_t tick;
+		tick = osKernelGetSysTimerCount();
+		uint32_t diff = tick - g_motor_2_start;
+		uint32_t freq = osKernelGetSysTimerFreq();
+		uint32_t timeout_value = 1 * freq;
+		if (diff >= timeout_value){
+			HAL_GPIO_WritePin(GPIOB, GPIO_PIN_7, GPIO_PIN_RESET);
+			g_motor_2 = 2;
+			g_motor_2_start = osKernelGetSysTimerCount();
+		}
+	}
+	else if(g_motor_2 == 2){
+		uint32_t tick;
+		tick = osKernelGetSysTimerCount();
+		uint32_t diff = tick - g_motor_2_start;
+		uint32_t freq = osKernelGetSysTimerFreq();
+		uint32_t timeout_value = 1 * freq;
+		if (diff >= timeout_value){
+			HAL_GPIO_WritePin(GPIOB, GPIO_PIN_7, GPIO_PIN_SET);
+			g_motor_2 = 1;
+			g_motor_2_start = osKernelGetSysTimerCount();
+		}
+	}
+}
+
+
 //key
 uint8_t g_key_1_value = 0x02;
 uint8_t g_key_1_report_flag = 0x00;
@@ -642,9 +709,6 @@ uint8_t g_key_2_value = 0x02;
 uint8_t g_key_2_report_flag = 0x00;
 
 //Fan
-//uint8_t g_fan_1 = 0;
-//uint32_t g_fan_1_start = 0;
-
 uint8_t g_fan_1_value = 0x00;
 uint8_t g_fan_2_value = 0x00;
 uint8_t g_fan_3_value = 0x00;
@@ -655,7 +719,6 @@ uint8_t g_angle_report_flag = 0x00;
 uint32_t g_angle_detect_value = 0x00;
 uint8_t g_angle_adc_flag = 0x00;
 uint32_t g_angle_adc_start = 0;
-
 
 // ADC
 void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc)
@@ -680,6 +743,30 @@ void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc)
 		g_strength_value = Value_1;
 		g_strength_adc_start = osKernelGetSysTimerCount();
 		g_strength_adc_flag = 1;
+	}
+}
+
+void update_strength_adc(){
+	uint32_t tick;
+	tick = osKernelGetSysTimerCount();
+	uint32_t diff = tick - g_strength_adc_start;
+	uint32_t freq = osKernelGetSysTimerFreq();
+	uint32_t timeout_value = 0.05 * freq;
+	if (diff >= timeout_value){
+		g_strength_adc_flag = 0;
+		HAL_ADC_Start_IT(&hadc2);
+	}
+}
+
+void update_angle_adc(){
+	uint32_t tick;
+	tick = osKernelGetSysTimerCount();
+	uint32_t diff = tick - g_angle_adc_start;
+	uint32_t freq = osKernelGetSysTimerFreq();
+	uint32_t timeout_value = 0.05 * freq;
+	if (diff >= timeout_value){
+		g_angle_adc_flag = 0x00;
+		HAL_ADC_Start_IT(&hadc1);
 	}
 }
 
@@ -831,14 +918,30 @@ uint8_t g_energy_lamp_bit_index = 0;
 uint8_t g_energy_lamp_pos = 0;
 uint8_t g_energy_lamp_index = 0;
 
+#define SIDE_LAMP_COUNT 168
+
 // side lamp 1
 uint8_t g_side_1_lamp_flag = 0;
-uint8_t g_side_1_lamp_value[168][3];
+uint8_t g_side_1_lamp_value_on = 0;
+uint8_t g_side_1_lamp_effect = 0;
+uint32_t g_side_1_lamp_color_value;
+uint8_t g_side_1_lamp_value[SIDE_LAMP_COUNT][3];
 uint32_t g_side_1_lamp_start = 0;
+uint8_t g_side_1_lamp_bit_index = 0;
+uint8_t g_side_1_lamp_pos = 0;
+uint8_t g_side_1_lamp_index = 0;
+
+uint32_t g_side_1_lamp_flow_effect_1_start =0;
+uint8_t g_side_1_lamp_flow_effect_1_current_count = 0;
+uint8_t g_sied_1_lamp_flow_effect_1_flag = 0;
+
+uint32_t g_side_1_lamp_flow_effect_2_start =0;
+uint8_t g_side_1_lamp_flow_effect_2_current_count = 0;
+uint8_t g_sied_1_lamp_flow_effect_2_flag = 0;
 
 // side lamp 2
 uint8_t g_side_2_lamp_flag = 0;
-uint8_t g_side_2_lamp_value[168][3];
+uint8_t g_side_2_lamp_value[SIDE_LAMP_COUNT][3];
 uint32_t g_side_2_lamp_start = 0;
 
 uint8_t compute_logo_final_value(){
@@ -861,6 +964,34 @@ void start_logo_lamp_pwm(){
 	uint8_t final_value = compute_logo_final_value();
 	TIM1->CCR2 = (htim1.Init.Period * final_value) / 4u;
 	HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_2);  //TIM1_CH2
+}
+
+void update_logo_lamp_pwm_value(){
+	uint32_t tick;
+	tick = osKernelGetSysTimerCount();
+	uint32_t diff = tick - g_logo_lamp_start;
+	uint32_t freq = osKernelGetSysTimerFreq();
+	uint32_t timeout_value = 0.0000012 * freq;
+	if (diff >= timeout_value){
+		if (g_logo_lamp_bit_index == 0){
+			g_logo_lamp_bit_index = 7;
+			g_logo_lamp_pos++;
+			if (g_logo_lamp_pos>2){
+				g_logo_lamp_pos = 0;
+				g_logo_lamp_index ++;
+				if (g_logo_lamp_index >= LOGO_COUNT){
+					g_logo_lamp_flag = 0;
+					HAL_TIM_PWM_Stop(&htim1, TIM_CHANNEL_2);
+				}
+			}
+		}
+		else{
+			g_logo_lamp_bit_index--;
+		}
+
+		uint8_t final_value = compute_logo_final_value();
+		TIM1->CCR2 = (htim1.Init.Period * final_value) / 4u;
+	}
 }
 
 void fill_logo_lamp_color(){
@@ -911,6 +1042,33 @@ void start_energy_lamp_pwm(){
 	HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_3);  //TIM1_CH3
 }
 
+void update_energy_lamp_pwm_value(){
+	uint32_t tick;
+	tick = osKernelGetSysTimerCount();
+	uint32_t diff = tick - g_energy_lamp_start;
+	uint32_t freq = osKernelGetSysTimerFreq();
+	uint32_t timeout_value = 0.0000012 * freq;
+	if (diff >= timeout_value){
+		if (g_energy_lamp_bit_index == 0){
+			g_energy_lamp_bit_index = 7;
+			g_energy_lamp_pos++;
+			if (g_energy_lamp_pos>2){
+				g_energy_lamp_pos = 0;
+				g_energy_lamp_index ++;
+				if (g_energy_lamp_index >= ENERGY_COUNT){
+					g_energy_lamp_flag = 0;
+					HAL_TIM_PWM_Stop(&htim1, TIM_CHANNEL_3);
+				}
+			}
+		}
+		else{
+			g_energy_lamp_bit_index--;
+		}
+		uint8_t final_value = compute_energy_final_value();
+		TIM1->CCR3 = (htim1.Init.Period * final_value) / 4u;
+	}
+}
+
 void fill_energy_lamp_color(){
 	uint32_t color_value = g_energy_lamp_color_value;
 
@@ -938,6 +1096,7 @@ void fill_energy_lamp_blank(){
 }
 
 void fill_energy_lamp_count(uint8_t count){
+
 	uint32_t color_value = g_energy_lamp_color_value;
 
 	uint8_t red_value = (color_value & 0xFF0000) >> 16;
@@ -957,6 +1116,166 @@ void fill_energy_lamp_count(uint8_t count){
 	}
 	start_energy_lamp_pwm();
 }
+
+void fill_energy_lamp_circle_count(uint8_t circle_count){
+	uint8_t count = 1;
+	if (circle_count>100){
+		count = 21;
+	}
+	else{
+		if ((circle_count % 5) == 0){
+			count = circle_count / 5;
+		}
+		else{
+			count = circle_count / 5 + 1;
+		}
+	}
+	fill_energy_lamp_count(count);
+}
+
+uint8_t compute_side_1_final_value(){
+	uint8_t value = g_side_1_lamp_value[g_side_1_lamp_index][g_side_1_lamp_pos];
+	uint8_t bit_value = ( value & ( 0x01 << g_side_1_lamp_bit_index ) ) >> g_side_1_lamp_bit_index;
+	uint8_t final_val = 1;
+	if (bit_value == 1){
+		final_val = 3;
+	}
+	return final_val;
+}
+
+void start_side_1_lamp_pwm(){
+	g_side_1_lamp_flag = 1;
+	g_side_1_lamp_start = osKernelGetSysTimerCount();
+	g_side_1_lamp_pos = 0;
+	g_side_1_lamp_index = 0;
+	g_side_1_lamp_bit_index = 7;
+
+	uint8_t final_value = compute_side_1_final_value();
+	TIM16->CCR1 = (htim1.Init.Period * final_value) / 4u;
+	HAL_TIM_PWM_Start(&htim16, TIM_CHANNEL_1);  //TIM16_CH1
+}
+
+void update_side_1_lamp_pwm_value(){
+	uint32_t tick;
+	tick = osKernelGetSysTimerCount();
+	uint32_t diff = tick - g_side_1_lamp_start;
+	uint32_t freq = osKernelGetSysTimerFreq();
+	uint32_t timeout_value = 0.0000012 * freq;
+	if (diff >= timeout_value){
+		if (g_side_1_lamp_bit_index == 0){
+			g_side_1_lamp_bit_index = 7;
+			g_side_1_lamp_pos++;
+			if (g_side_1_lamp_pos>2){
+				g_side_1_lamp_pos = 0;
+				g_side_1_lamp_index ++;
+				if (g_side_1_lamp_index >= SIDE_LAMP_COUNT){
+					g_side_1_lamp_flag = 0;
+					HAL_TIM_PWM_Stop(&htim16, TIM_CHANNEL_1);
+				}
+			}
+		}
+		else{
+			g_side_1_lamp_bit_index--;
+		}
+		uint8_t final_value = compute_side_1_final_value();
+		TIM16->CCR1 = (htim1.Init.Period * final_value) / 4u;
+	}
+}
+
+void fill_side_1_lamp_color(){
+	uint32_t color_value = g_side_1_lamp_color_value;
+
+	uint8_t red_value = (color_value & 0xFF0000) >> 16;
+	uint8_t green_value = (color_value & 0x00FF00) >> 8;
+	uint8_t blue_value = (color_value & 0x0000FF);
+
+	uint8_t i=0;
+	for(i=0; i< SIDE_LAMP_COUNT; i++){
+		g_side_1_lamp_value[i][0] = red_value;
+		g_side_1_lamp_value[i][1] = green_value;
+		g_side_1_lamp_value[i][2] = blue_value;
+	}
+	start_side_1_lamp_pwm();
+}
+
+void fill_side_1_lamp_blank(){
+	uint8_t i=0;
+	for(i=0; i< SIDE_LAMP_COUNT; i++){
+		g_side_1_lamp_value[i][0] = 0x00;
+		g_side_1_lamp_value[i][1] = 0x00;
+		g_side_1_lamp_value[i][2] = 0x00;
+	}
+	start_side_1_lamp_pwm();
+}
+
+void fill_side_1_lamp_count(uint8_t count){
+
+	uint32_t color_value = g_side_1_lamp_color_value;
+
+	uint8_t red_value = (color_value & 0xFF0000) >> 16;
+	uint8_t green_value = (color_value & 0x00FF00) >> 8;
+	uint8_t blue_value = (color_value & 0x0000FF);
+
+	uint8_t i=0;
+	for(i=0; i< count; i++){
+		g_side_1_lamp_value[i][0] = red_value;
+		g_side_1_lamp_value[i][1] = green_value;
+		g_side_1_lamp_value[i][2] = blue_value;
+	}
+	for(i=count; i< SIDE_LAMP_COUNT; i++){
+		g_side_1_lamp_value[i][0] = 0x00;
+		g_side_1_lamp_value[i][1] = 0x00;
+		g_side_1_lamp_value[i][2] = 0x00;
+	}
+	start_side_1_lamp_pwm();
+}
+
+void start_side_1_flow_effect_1(){
+	g_side_1_lamp_flow_effect_1_start = osKernelGetSysTimerCount();
+	g_side_1_lamp_flow_effect_1_current_count = 1;
+	g_sied_1_lamp_flow_effect_1_flag = 1;
+	fill_side_1_lamp_count(g_side_1_lamp_flow_effect_1_current_count);
+}
+
+void update_sied_1_lamp_flow_effect_1(){
+	uint32_t tick;
+	tick = osKernelGetSysTimerCount();
+	uint32_t diff = tick - g_side_1_lamp_flow_effect_1_start;
+	uint32_t freq = osKernelGetSysTimerFreq();
+	uint32_t timeout_value = 0.01 * freq;
+	if (diff >= timeout_value){
+		g_side_1_lamp_flow_effect_1_current_count++;
+		fill_side_1_lamp_count(g_side_1_lamp_flow_effect_1_current_count);
+		if (g_side_1_lamp_flow_effect_1_current_count>=SIDE_LAMP_COUNT){
+			g_sied_1_lamp_flow_effect_1_flag = 0;
+			// change logo and energy lamp after side_1 lamp
+			fill_logo_lamp_color();
+			fill_energy_lamp_color();
+		}
+	}
+}
+
+void start_side_flow_effect_2(){
+	g_side_1_lamp_flow_effect_2_start = osKernelGetSysTimerCount();
+	g_side_1_lamp_flow_effect_2_current_count = 168;
+	g_sied_1_lamp_flow_effect_2_flag = 1;
+}
+
+void update_sied_1_lamp_flow_effect_2(){
+	uint32_t tick;
+	tick = osKernelGetSysTimerCount();
+	uint32_t diff = tick - g_side_1_lamp_flow_effect_2_start;
+	uint32_t freq = osKernelGetSysTimerFreq();
+	uint32_t timeout_value = 0.01 * freq;
+	if (diff >= timeout_value){
+		g_side_1_lamp_flow_effect_2_current_count--;
+		fill_side_1_lamp_count(g_side_1_lamp_flow_effect_2_current_count);
+		if (g_side_1_lamp_flow_effect_2_current_count<=0){
+			g_sied_1_lamp_flow_effect_2_flag = 0;
+		}
+	}
+}
+
 /* USER CODE END 0 */
 
 /**
@@ -2019,11 +2338,15 @@ void StartMainRecvTask(void *argument)
 		HAL_UART_Receive_IT(&huart4,(uint8_t*)down_head_buf,2);
 	}
 
-	g_logo_lamp_color_value = 0xCF0F0F;
-	fill_logo_lamp_color();
+	uint32_t default_color = 0x00FFFF;
+	g_logo_lamp_color_value = default_color;
+	//fill_logo_lamp_color();
 
-	g_energy_lamp_color_value = 0xFF00FF;
-	fill_energy_lamp_color();
+	g_energy_lamp_color_value = default_color;
+	//fill_energy_lamp_color();
+
+	g_side_1_lamp_color_value = default_color;
+	start_side_1_flow_effect_1();
 
 	fill_down_board_init_telegram();
 	g_wait_down_board_start = osKernelGetSysTimerCount();
@@ -2032,16 +2355,16 @@ void StartMainRecvTask(void *argument)
 	/* Infinite loop */
 	for(;;)
 	{
+		if (g_sied_1_lamp_flow_effect_1_flag == 1){
+			update_sied_1_lamp_flow_effect_1();
+		}
+
+		if (g_sied_1_lamp_flow_effect_2_flag == 1){
+			update_sied_1_lamp_flow_effect_2();
+		}
+
 		if (g_strength_adc_flag == 1){
-			uint32_t tick;
-			tick = osKernelGetSysTimerCount();
-			uint32_t diff = tick - g_strength_adc_start;
-			uint32_t freq = osKernelGetSysTimerFreq();
-			uint32_t timeout_value = 0.05 * freq;
-			if (diff >= timeout_value){
-				g_strength_adc_flag = 0;
-				HAL_ADC_Start_IT(&hadc2);
-			}
+			update_strength_adc();
 		}
 
 		if (g_step_flag == 1 && g_idle_mode >=0){
@@ -2072,40 +2395,32 @@ void StartMainRecvTask(void *argument)
 		}
 
 		if(g_angle_adc_flag == 0x01){
-			uint32_t tick;
-			tick = osKernelGetSysTimerCount();
-			uint32_t diff = tick - g_angle_adc_start;
-			uint32_t freq = osKernelGetSysTimerFreq();
-			uint32_t timeout_value = 0.05 * freq;
-			if (diff >= timeout_value){
-				g_angle_adc_flag = 0x00;
-				HAL_ADC_Start_IT(&hadc1);
-			}
+			update_angle_adc();
 		}
 
 		if (g_human_rader_1_report_flag == 0x01){
 			g_human_rader_1_report_flag = 0x00;
-			put_byte_into_out_buffer(0x03, 0x01, g_human_rader_1_report_value);
+			put_byte_into_out_buffer(0x03, 0x01, g_human_rader_1_report_value); //human rader 1
 		}
 
 		if (g_human_rader_2_report_flag == 0x01){
 			g_human_rader_2_report_flag = 0x02;
-			put_byte_into_out_buffer(0x03, 0x02, g_human_rader_2_report_value);
+			put_byte_into_out_buffer(0x03, 0x02, g_human_rader_2_report_value); //human rader 2
 		}
 
 		if (g_hall_detect_report_flag == 0x01){
 			g_hall_detect_report_flag = 0x00;
-			put_byte_into_out_buffer(0x02, 0x01, g_hall_detect_value);
+			put_byte_into_out_buffer(0x02, 0x01, g_hall_detect_value);	//Hall detect
 		}
 
 		if (g_key_1_report_flag == 0x01){
 			g_key_1_report_flag = 0x00;
-			put_byte_into_out_buffer(0x05, 0x01, g_key_1_value);
+			put_byte_into_out_buffer(0x05, 0x01, g_key_1_value);	//Key 1
 		}
 
 		if (g_key_2_report_flag == 0x01){
 			g_key_2_report_flag = 0x00;
-			put_byte_into_out_buffer(0x05, 0x02, g_key_2_value);
+			put_byte_into_out_buffer(0x05, 0x02, g_key_2_value);	//Key 2
 		}
 
 		if (g_exit_idle_report_flag == 0x01){
@@ -2119,117 +2434,27 @@ void StartMainRecvTask(void *argument)
 		}
 
 		if (g_idle_mode == -2){  //when MCU startup with power, send initialize telegram into down board, wait it reply.
-			uint32_t tick;
-			tick = osKernelGetSysTimerCount();
-			uint32_t diff = tick - g_wait_down_board_start;
-			uint32_t freq = osKernelGetSysTimerFreq();
-			uint32_t timeout_value = 5 * freq;	//wait 5 seconds for retry.
-			if (diff >= timeout_value){	//retry to send initialize telegram into down board, wait it reply
-				g_wait_down_board_start = osKernelGetSysTimerCount();
-				HAL_UART_Transmit(&huart4,(uint8_t*)g_down_borad_init_data_ptr,0x08,0xffff);
-			}
+			update_retry_down_board_communication();
 		}
 
-		if (g_motor_1 == 1){
-			uint32_t tick;
-			tick = osKernelGetSysTimerCount();
-			uint32_t diff = tick - g_motor_1_start;
-			uint32_t freq = osKernelGetSysTimerFreq();
-			uint32_t timeout_value = 1 * freq;
-			if (diff >= timeout_value){
-				HAL_GPIO_WritePin(GPIOB, GPIO_PIN_9, GPIO_PIN_RESET);
-				g_motor_1 = 2;
-				g_motor_1_start = osKernelGetSysTimerCount();
-			}
-		}
-		else if(g_motor_1 == 2){
-			uint32_t tick;
-			tick = osKernelGetSysTimerCount();
-			uint32_t diff = tick - g_motor_1_start;
-			uint32_t freq = osKernelGetSysTimerFreq();
-			uint32_t timeout_value = 1 * freq;
-			if (diff >= timeout_value){
-				HAL_GPIO_WritePin(GPIOB, GPIO_PIN_9, GPIO_PIN_SET);
-				g_motor_1 = 1;
-				g_motor_1_start = osKernelGetSysTimerCount();
-			}
-		}
-		if (g_motor_2 == 1){
-			uint32_t tick;
-			tick = osKernelGetSysTimerCount();
-			uint32_t diff = tick - g_motor_2_start;
-			uint32_t freq = osKernelGetSysTimerFreq();
-			uint32_t timeout_value = 1 * freq;
-			if (diff >= timeout_value){
-				HAL_GPIO_WritePin(GPIOB, GPIO_PIN_7, GPIO_PIN_RESET);
-				g_motor_2 = 2;
-				g_motor_2_start = osKernelGetSysTimerCount();
-			}
-		}
-		else if(g_motor_2 == 2){
-			uint32_t tick;
-			tick = osKernelGetSysTimerCount();
-			uint32_t diff = tick - g_motor_2_start;
-			uint32_t freq = osKernelGetSysTimerFreq();
-			uint32_t timeout_value = 1 * freq;
-			if (diff >= timeout_value){
-				HAL_GPIO_WritePin(GPIOB, GPIO_PIN_7, GPIO_PIN_SET);
-				g_motor_2 = 1;
-				g_motor_2_start = osKernelGetSysTimerCount();
-			}
+		if (g_motor_1 > 0){
+			update_motor_1_action();
 		}
 
-//		if (g_fan_1 == 1){
-//			uint32_t tick;
-//			tick = osKernelGetSysTimerCount();
-//			uint32_t diff = tick - g_fan_1_start;
-//			uint32_t freq = osKernelGetSysTimerFreq();
-//			uint32_t timeout_value = 0.05 * g_fan_1_value * freq;
-//			if (diff > timeout_value){
-//				HAL_GPIO_WritePin(GPIOB, GPIO_PIN_5, GPIO_PIN_SET);
-//				g_fan_1 = 2;
-//				g_fan_1_start = osKernelGetSysTimerCount();
-//			}
-//		}
-//		else if(g_fan_1 == 2){
-//			uint32_t tick;
-//			tick = osKernelGetSysTimerCount();
-//			uint32_t diff = tick - g_fan_1_start;
-//			uint32_t freq = osKernelGetSysTimerFreq();
-//			uint32_t timeout_value = 0.05 *(0x14 - g_fan_1_value) * freq;
-//			if (diff > timeout_value){
-//				HAL_GPIO_WritePin(GPIOB, GPIO_PIN_5, GPIO_PIN_RESET);
-//				g_fan_1 = 1;
-//				g_fan_1_start = osKernelGetSysTimerCount();
-//			}
-//		}
+		if (g_motor_2 > 0){
+			update_motor_2_action();
+		}
 
 		if (g_logo_lamp_flag == 1){
-			uint32_t tick;
-			tick = osKernelGetSysTimerCount();
-			uint32_t diff = tick - g_logo_lamp_start;
-			uint32_t freq = osKernelGetSysTimerFreq();
-			uint32_t timeout_value = 0.0000012 * freq;
-			if (diff >= timeout_value){
-				if (g_logo_lamp_bit_index == 0){
-					g_logo_lamp_bit_index = 7;
-					g_logo_lamp_pos++;
-					if (g_logo_lamp_pos>2){
-						g_logo_lamp_pos = 0;
-						g_logo_lamp_index ++;
-						if (g_logo_lamp_index >= LOGO_COUNT){
-							g_logo_lamp_flag = 0;
-							HAL_TIM_PWM_Stop(&htim1, TIM_CHANNEL_2);
-						}
-					}
-				}
-				else{
-					g_logo_lamp_bit_index--;
-				}
+			update_logo_lamp_pwm_value();
+		}
 
-				uint8_t final_value = compute_logo_final_value();
-				TIM1->CCR2 = (htim1.Init.Period * final_value) / 4u;
-			}
+		if (g_energy_lamp_flag == 1){
+			update_energy_lamp_pwm_value();
+		}
+
+		if (g_side_1_lamp_flag == 1){
+			update_side_1_lamp_pwm_value();
 		}
 		osDelay(1);
 	}
@@ -2476,7 +2701,7 @@ void StartWorkTask(void *argument)
 						char *len_ptr = data_ptr + 2;
 						int len_value = compute_len(len_ptr);
 						char * data_ptr = len_ptr + 4;
-						if(len_value == 5){
+						if(len_value == 6){
 							uint8_t value_on = data_ptr[0];
 							g_energy_lamp_value_on = value_on;
 							uint8_t value_red = data_ptr[1];
@@ -2490,7 +2715,8 @@ void StartWorkTask(void *argument)
 									fill_energy_lamp_color();
 								}
 								else if(g_energy_lamp_effect == 0x02){
-									fill_energy_lamp_count(1);
+									uint8_t energy_lamp_count = data_ptr[5];
+									fill_energy_lamp_circle_count(energy_lamp_count);
 								}
 							}
 							else if (value_on == 0x02){
