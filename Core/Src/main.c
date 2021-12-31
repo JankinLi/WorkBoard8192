@@ -2486,7 +2486,7 @@ void StartMainRecvTask(void *argument)
 				g_step_value = g_step_count;
 				g_step_count = 0;
 				if ((g_step_value != g_old_step_value) || (g_strength_value!=g_old_strength_value)){
-					put_two_int_and_one_byte_into_out_buffer(0x01, 0x04, g_step_value, g_strength_value, g_hall_detect_value);
+					put_two_int_and_one_byte_into_out_buffer(0x01, 0x05, g_step_value, g_strength_value, g_hall_detect_value);
 					if(g_step_value != g_old_step_value){
 						g_old_step_value = g_step_value;
 					}
