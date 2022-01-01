@@ -868,7 +868,7 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) {
 						g_shudown_report_flag = 0x01;
 					}
 					else if( diff >= timeout_value_10_second){
-						HAL_GPIO_WritePin(GPIOA, GPIO_PIN_8, GPIO_PIN_RESET);
+						HAL_GPIO_WritePin(GPIOA, GPIO_PIN_8, GPIO_PIN_SET);
 					}
 				}
 			}
@@ -885,7 +885,7 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) {
 						g_shudown_report_flag = 0x01;
 					}
 					else if( diff >= timeout_value_10_second){
-						HAL_GPIO_WritePin(GPIOA, GPIO_PIN_8, GPIO_PIN_RESET);
+						HAL_GPIO_WritePin(GPIOA, GPIO_PIN_8, GPIO_PIN_SET);
 					}
 				}
 			}
@@ -2965,10 +2965,10 @@ void StartWorkTask(void *argument)
 				}
 				else if(data_ptr[0] == 0x11){
 					if(data_ptr[1] == 0x02 ){
-						HAL_GPIO_WritePin(GPIOA, GPIO_PIN_8, GPIO_PIN_RESET);
+						HAL_GPIO_WritePin(GPIOA, GPIO_PIN_8, GPIO_PIN_SET);
 					}
 					else if(data_ptr[1] == 0x03 ){
-						HAL_GPIO_WritePin(GPIOA, GPIO_PIN_8, GPIO_PIN_RESET);
+						HAL_GPIO_WritePin(GPIOA, GPIO_PIN_8, GPIO_PIN_SET);
 					}
 					else if(data_ptr[1] == 0x04 ){
 						g_idle_mode = 1; //sleep mode
