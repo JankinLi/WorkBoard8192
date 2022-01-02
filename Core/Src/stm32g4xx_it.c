@@ -59,11 +59,14 @@
 extern ADC_HandleTypeDef hadc1;
 extern ADC_HandleTypeDef hadc2;
 extern LPTIM_HandleTypeDef hlptim1;
+extern TIM_HandleTypeDef htim4;
 extern UART_HandleTypeDef huart4;
 extern UART_HandleTypeDef huart1;
 extern TIM_HandleTypeDef htim6;
 
 /* USER CODE BEGIN EV */
+extern uint8_t g_energy_lamp_flag;
+void update_energy_lamp_pwm_value_with_IT();
 /* USER CODE END EV */
 
 /******************************************************************************/
@@ -236,6 +239,22 @@ void ADC1_2_IRQHandler(void)
 }
 
 /**
+  * @brief This function handles TIM4 global interrupt.
+  */
+void TIM4_IRQHandler(void)
+{
+  /* USER CODE BEGIN TIM4_IRQn 0 */
+	if (g_energy_lamp_flag == 1){
+		update_energy_lamp_pwm_value_with_IT();
+	}
+  /* USER CODE END TIM4_IRQn 0 */
+  HAL_TIM_IRQHandler(&htim4);
+  /* USER CODE BEGIN TIM4_IRQn 1 */
+
+  /* USER CODE END TIM4_IRQn 1 */
+}
+
+/**
   * @brief This function handles USART1 global interrupt / USART1 wake-up interrupt through EXTI line 25.
   */
 void USART1_IRQHandler(void)
@@ -298,7 +317,6 @@ void UART4_IRQHandler(void)
 void TIM6_DAC_IRQHandler(void)
 {
   /* USER CODE BEGIN TIM6_DAC_IRQn 0 */
-
   /* USER CODE END TIM6_DAC_IRQn 0 */
   HAL_TIM_IRQHandler(&htim6);
   /* USER CODE BEGIN TIM6_DAC_IRQn 1 */
