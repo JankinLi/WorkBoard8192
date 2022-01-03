@@ -918,6 +918,8 @@ uint8_t g_energy_lamp_value[ENERGY_COUNT][3];
 uint32_t g_energy_lamp_start = 0;
 uint8_t g_energy_lamp_bit_index = 0;
 uint8_t g_energy_lamp_pos = 0;
+uint8_t g_energy_lamp_wait_flag = 0;
+uint8_t g_energy_lamp_wait_index = 0;
 uint8_t g_energy_lamp_index = 0;
 
 #define SIDE_LAMP_COUNT 168
@@ -1159,6 +1161,8 @@ void stop_update_energy_lamp_pwn_value(){
 void start_energy_lamp_pwm_with_IT(){
 	g_energy_lamp_flag = 1;
 	g_energy_lamp_pos = 0;
+	g_energy_lamp_wait_flag = 0;
+	g_energy_lamp_wait_index = 0;
 	g_energy_lamp_index = 0;
 	g_energy_lamp_bit_index = 7;
 
@@ -1169,18 +1173,33 @@ void start_energy_lamp_pwm_with_IT(){
 }
 
 void update_energy_lamp_pwm_value_with_IT(){
+	if (g_energy_lamp_wait_flag == 0x01){
+		TIM1->CCR3 = 0;
+		g_energy_lamp_wait_index++;
+		if (g_energy_lamp_wait_index < 3){
+			return;
+		}
+
+		g_energy_lamp_wait_flag = 0;
+		g_energy_lamp_wait_index = 0;
+		g_energy_lamp_index++;
+		if (g_energy_lamp_index >= ENERGY_COUNT){
+			g_energy_lamp_flag = 0;
+			HAL_TIM_PWM_Stop(&htim1, TIM_CHANNEL_3);
+			HAL_TIM_Base_Stop_IT(&htim4);
+			return;
+		}
+	}
+
 	if (g_energy_lamp_bit_index == 0){
 		g_energy_lamp_bit_index = 7;
 		g_energy_lamp_pos++;
 		if (g_energy_lamp_pos>2){
 			g_energy_lamp_pos = 0;
-			g_energy_lamp_index++;
-			if (g_energy_lamp_index >= ENERGY_COUNT){
-				g_energy_lamp_flag = 0;
-				HAL_TIM_PWM_Stop(&htim1, TIM_CHANNEL_3);
-				HAL_TIM_Base_Stop_IT(&htim4);
-				return;
-			}
+			g_energy_lamp_wait_flag = 0x01;
+			g_energy_lamp_wait_index = 0x00;
+			TIM1->CCR3 = 0;
+			return;
 		}
 	}
 	else{
@@ -1855,7 +1874,7 @@ static void MX_TIM1_Init(void)
 
   /* USER CODE END TIM1_Init 1 */
   htim1.Instance = TIM1;
-  htim1.Init.Prescaler = 18;
+  htim1.Init.Prescaler = 14;
   htim1.Init.CounterMode = TIM_COUNTERMODE_UP;
   htim1.Init.Period = 4;
   htim1.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
@@ -2057,8 +2076,8 @@ static void MX_TIM4_Init(void)
 
   /* USER CODE END TIM4_Init 1 */
   htim4.Instance = TIM4;
-  htim4.Init.Prescaler = 18;
-  htim4.Init.CounterMode = TIM_COUNTERMODE_UP;
+  htim4.Init.Prescaler = 14;
+  htim4.Init.CounterMode = TIM_COUNTERMODE_DOWN;
   htim4.Init.Period = 4;
   htim4.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
   htim4.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
