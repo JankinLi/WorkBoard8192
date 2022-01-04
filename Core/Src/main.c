@@ -72,28 +72,28 @@ const osThreadAttr_t MainRecvTask_attributes = {
 osThreadId_t WorkTaskHandle;
 const osThreadAttr_t WorkTask_attributes = {
   .name = "WorkTask",
-  .priority = (osPriority_t) osPriorityLow,
+  .priority = (osPriority_t) osPriorityNormal,
   .stack_size = 128 * 4
 };
 /* Definitions for OutTask */
 osThreadId_t OutTaskHandle;
 const osThreadAttr_t OutTask_attributes = {
   .name = "OutTask",
-  .priority = (osPriority_t) osPriorityLow,
+  .priority = (osPriority_t) osPriorityNormal,
   .stack_size = 128 * 4
 };
 /* Definitions for ErrorTask */
 osThreadId_t ErrorTaskHandle;
 const osThreadAttr_t ErrorTask_attributes = {
   .name = "ErrorTask",
-  .priority = (osPriority_t) osPriorityLow,
+  .priority = (osPriority_t) osPriorityNormal,
   .stack_size = 128 * 4
 };
 /* Definitions for DownBoardTask */
 osThreadId_t DownBoardTaskHandle;
 const osThreadAttr_t DownBoardTask_attributes = {
   .name = "DownBoardTask",
-  .priority = (osPriority_t) osPriorityLow,
+  .priority = (osPriority_t) osPriorityNormal,
   .stack_size = 128 * 4
 };
 /* Definitions for MainRecvQueue */
@@ -1547,11 +1547,22 @@ int main(void)
   MX_TIM4_Init();
   /* USER CODE BEGIN 2 */
 
+  __HAL_TIM_CLEAR_IT(&htim1, TIM_IT_UPDATE);
   HAL_TIM_Base_Start_IT(&htim1);
+
+  __HAL_TIM_CLEAR_IT(&htim2, TIM_IT_UPDATE);
   HAL_TIM_Base_Start_IT(&htim2);
+
+  __HAL_TIM_CLEAR_IT(&htim3, TIM_IT_UPDATE);
   HAL_TIM_Base_Start_IT(&htim3);
+
+  __HAL_TIM_CLEAR_IT(&htim8, TIM_IT_UPDATE);
   HAL_TIM_Base_Start_IT(&htim8);
+
+  __HAL_TIM_CLEAR_IT(&htim16, TIM_IT_UPDATE);
   HAL_TIM_Base_Start_IT(&htim16);
+
+  __HAL_TIM_CLEAR_IT(&htim17, TIM_IT_UPDATE);
   HAL_TIM_Base_Start_IT(&htim17);
 
   // Calibrate The ADC On Power-Up For Better Accuracy
@@ -1836,7 +1847,7 @@ static void MX_LPTIM1_Init(void)
   hlptim1.Init.Clock.Source = LPTIM_CLOCKSOURCE_APBCLOCK_LPOSC;
   hlptim1.Init.Clock.Prescaler = LPTIM_PRESCALER_DIV1;
   hlptim1.Init.Trigger.Source = LPTIM_TRIGSOURCE_0;
-  hlptim1.Init.Trigger.ActiveEdge = LPTIM_ACTIVEEDGE_FALLING;
+  hlptim1.Init.Trigger.ActiveEdge = LPTIM_ACTIVEEDGE_RISING_FALLING;
   hlptim1.Init.Trigger.SampleTime = LPTIM_TRIGSAMPLETIME_DIRECTTRANSITION;
   hlptim1.Init.OutputPolarity = LPTIM_OUTPUTPOLARITY_HIGH;
   hlptim1.Init.UpdateMode = LPTIM_UPDATE_ENDOFPERIOD;
@@ -2761,15 +2772,17 @@ void StartWorkTask(void *argument)
 					}
 					else if(data_ptr[1] == 0x03){
 						g_step_count = 0;
-						HAL_LPTIM_Counter_Start_IT(&hlptim1, 32); //a circle generate 32 pulse
+						HAL_LPTIM_Counter_Start_IT(&hlptim1, 32); //a circle generate 32 pulse.
+						//HAL_LPTIM_Counter_Start(&hlptim1, 32);
 						g_step_start = osKernelGetSysTimerCount();
 						// Start ADC Conversion
-						HAL_ADC_Start_IT(&hadc2);
+						//HAL_ADC_Start_IT(&hadc2);
 						g_step_flag = 1;
 					}
 					else if(data_ptr[1] == 0x04 ){
-						HAL_ADC_Stop_IT(&hadc2);
+						//HAL_ADC_Stop_IT(&hadc2);
 						HAL_LPTIM_Counter_Stop_IT(&hlptim1);
+						//HAL_LPTIM_Counter_Stop(&hlptim1);
 						g_strength_adc_flag = 0;
 						g_step_flag = 0;
 					}
