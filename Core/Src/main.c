@@ -45,8 +45,6 @@
 ADC_HandleTypeDef hadc1;
 ADC_HandleTypeDef hadc2;
 
-LPTIM_HandleTypeDef hlptim1;
-
 TIM_HandleTypeDef htim1;
 TIM_HandleTypeDef htim2;
 TIM_HandleTypeDef htim3;
@@ -132,7 +130,6 @@ static void MX_UART4_Init(void);
 static void MX_USART1_UART_Init(void);
 static void MX_USART3_UART_Init(void);
 static void MX_ADC1_Init(void);
-static void MX_LPTIM1_Init(void);
 static void MX_TIM1_Init(void);
 static void MX_TIM2_Init(void);
 static void MX_TIM3_Init(void);
@@ -171,9 +168,19 @@ uint32_t g_old_strength_value = 0;	//temporary value of strength
 uint8_t g_strength_adc_flag = 0;
 uint32_t g_strength_adc_start = 0;
 
-void HAL_LPTIM_AutoReloadMatchCallBack(LPTIM_HandleTypeDef *hlptim){
-	g_step_count++;
+//void HAL_LPTIM_AutoReloadMatchCallBack(LPTIM_HandleTypeDef *hlptim){
+//	g_step_count++;
+//}
+
+void HAL_TIM_IC_CaptureCallback(TIM_HandleTypeDef *htim){
+	if (htim->Channel == HAL_TIM_ACTIVE_CHANNEL_1){
+		uint32_t Cap_Data1 = HAL_TIM_ReadCapturedValue(&htim1, TIM_CHANNEL_4);
+		if (Cap_Data1 != 0){
+			g_step_count = Cap_Data1;
+		}
+	}
 }
+
 
 // idle mode
 int8_t g_idle_mode = -2; //-2 is wait down board, -1 is wait 0x01-0x01 telegram, 0 is work mode , 1 is sleep mode
@@ -1168,7 +1175,7 @@ void start_energy_lamp_pwm_with_IT(){
 
 	HAL_TIM_Base_Start_IT(&htim4);
 	uint8_t final_value = compute_energy_final_value();
-	TIM1->CCR3 = (htim1.Init.Period * final_value) / 4u;
+	TIM1->CCR3 = final_value;
 	HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_3);  //TIM1_CH3
 }
 
@@ -1176,7 +1183,7 @@ void update_energy_lamp_pwm_value_with_IT(){
 	if (g_energy_lamp_wait_flag == 0x01){
 		TIM1->CCR3 = 0;
 		g_energy_lamp_wait_index++;
-		if (g_energy_lamp_wait_index < 3){
+		if (g_energy_lamp_wait_index < 67){
 			return;
 		}
 
@@ -1206,7 +1213,7 @@ void update_energy_lamp_pwm_value_with_IT(){
 		g_energy_lamp_bit_index--;
 	}
 	uint8_t final_value = compute_energy_final_value();
-	TIM1->CCR3 = (htim1.Init.Period * final_value) / 4u;
+	TIM1->CCR3 = final_value;
 }
 
 void change_energy_lamp_color_IT(){
@@ -1535,7 +1542,6 @@ int main(void)
   MX_USART1_UART_Init();
   MX_USART3_UART_Init();
   MX_ADC1_Init();
-  MX_LPTIM1_Init();
   MX_TIM1_Init();
   MX_TIM2_Init();
   MX_TIM3_Init();
@@ -1692,12 +1698,11 @@ void SystemClock_Config(void)
   /** Initializes the peripherals clocks
   */
   PeriphClkInit.PeriphClockSelection = RCC_PERIPHCLK_USART1|RCC_PERIPHCLK_USART3
-                              |RCC_PERIPHCLK_UART4|RCC_PERIPHCLK_LPTIM1
-                              |RCC_PERIPHCLK_USB|RCC_PERIPHCLK_ADC12;
+                              |RCC_PERIPHCLK_UART4|RCC_PERIPHCLK_USB
+                              |RCC_PERIPHCLK_ADC12;
   PeriphClkInit.Usart1ClockSelection = RCC_USART1CLKSOURCE_PCLK2;
   PeriphClkInit.Usart3ClockSelection = RCC_USART3CLKSOURCE_PCLK1;
   PeriphClkInit.Uart4ClockSelection = RCC_UART4CLKSOURCE_PCLK1;
-  PeriphClkInit.Lptim1ClockSelection = RCC_LPTIM1CLKSOURCE_PCLK1;
   PeriphClkInit.UsbClockSelection = RCC_USBCLKSOURCE_HSI48;
   PeriphClkInit.Adc12ClockSelection = RCC_ADC12CLKSOURCE_SYSCLK;
   if (HAL_RCCEx_PeriphCLKConfig(&PeriphClkInit) != HAL_OK)
@@ -1829,42 +1834,6 @@ static void MX_ADC2_Init(void)
 }
 
 /**
-  * @brief LPTIM1 Initialization Function
-  * @param None
-  * @retval None
-  */
-static void MX_LPTIM1_Init(void)
-{
-
-  /* USER CODE BEGIN LPTIM1_Init 0 */
-
-  /* USER CODE END LPTIM1_Init 0 */
-
-  /* USER CODE BEGIN LPTIM1_Init 1 */
-
-  /* USER CODE END LPTIM1_Init 1 */
-  hlptim1.Instance = LPTIM1;
-  hlptim1.Init.Clock.Source = LPTIM_CLOCKSOURCE_APBCLOCK_LPOSC;
-  hlptim1.Init.Clock.Prescaler = LPTIM_PRESCALER_DIV1;
-  hlptim1.Init.Trigger.Source = LPTIM_TRIGSOURCE_0;
-  hlptim1.Init.Trigger.ActiveEdge = LPTIM_ACTIVEEDGE_RISING_FALLING;
-  hlptim1.Init.Trigger.SampleTime = LPTIM_TRIGSAMPLETIME_DIRECTTRANSITION;
-  hlptim1.Init.OutputPolarity = LPTIM_OUTPUTPOLARITY_HIGH;
-  hlptim1.Init.UpdateMode = LPTIM_UPDATE_ENDOFPERIOD;
-  hlptim1.Init.CounterSource = LPTIM_COUNTERSOURCE_INTERNAL;
-  hlptim1.Init.Input1Source = LPTIM_INPUT1SOURCE_GPIO;
-  hlptim1.Init.Input2Source = LPTIM_INPUT2SOURCE_GPIO;
-  if (HAL_LPTIM_Init(&hlptim1) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  /* USER CODE BEGIN LPTIM1_Init 2 */
-
-  /* USER CODE END LPTIM1_Init 2 */
-
-}
-
-/**
   * @brief TIM1 Initialization Function
   * @param None
   * @retval None
@@ -1879,15 +1848,16 @@ static void MX_TIM1_Init(void)
   TIM_ClockConfigTypeDef sClockSourceConfig = {0};
   TIM_MasterConfigTypeDef sMasterConfig = {0};
   TIM_OC_InitTypeDef sConfigOC = {0};
+  TIM_IC_InitTypeDef sConfigIC = {0};
   TIM_BreakDeadTimeConfigTypeDef sBreakDeadTimeConfig = {0};
 
   /* USER CODE BEGIN TIM1_Init 1 */
 
   /* USER CODE END TIM1_Init 1 */
   htim1.Instance = TIM1;
-  htim1.Init.Prescaler = 14;
+  htim1.Init.Prescaler = 17;
   htim1.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim1.Init.Period = 4;
+  htim1.Init.Period = 3;
   htim1.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
   htim1.Init.RepetitionCounter = 0;
   htim1.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
@@ -1901,6 +1871,10 @@ static void MX_TIM1_Init(void)
     Error_Handler();
   }
   if (HAL_TIM_PWM_Init(&htim1) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  if (HAL_TIM_IC_Init(&htim1) != HAL_OK)
   {
     Error_Handler();
   }
@@ -1923,6 +1897,14 @@ static void MX_TIM1_Init(void)
     Error_Handler();
   }
   if (HAL_TIM_PWM_ConfigChannel(&htim1, &sConfigOC, TIM_CHANNEL_3) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sConfigIC.ICPolarity = TIM_INPUTCHANNELPOLARITY_RISING;
+  sConfigIC.ICSelection = TIM_ICSELECTION_DIRECTTI;
+  sConfigIC.ICPrescaler = TIM_ICPSC_DIV1;
+  sConfigIC.ICFilter = 0;
+  if (HAL_TIM_IC_ConfigChannel(&htim1, &sConfigIC, TIM_CHANNEL_4) != HAL_OK)
   {
     Error_Handler();
   }
@@ -2087,9 +2069,9 @@ static void MX_TIM4_Init(void)
 
   /* USER CODE END TIM4_Init 1 */
   htim4.Instance = TIM4;
-  htim4.Init.Prescaler = 14;
+  htim4.Init.Prescaler = 17;
   htim4.Init.CounterMode = TIM_COUNTERMODE_DOWN;
-  htim4.Init.Period = 4;
+  htim4.Init.Period = 3;
   htim4.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
   htim4.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
   if (HAL_TIM_Base_Init(&htim4) != HAL_OK)
@@ -2634,17 +2616,17 @@ void StartMainRecvTask(void *argument)
 	/* Infinite loop */
 	for(;;)
 	{
-		if (g_sied_1_lamp_flow_effect_1_flag == 1){
-			update_sied_1_lamp_flow_effect_1();
-		}
-
-		if (g_sied_1_lamp_flow_effect_2_flag == 1){
-			update_sied_1_lamp_flow_effect_2();
-		}
-
-		if (g_side_1_lamp_pulse_effect_flag == 1){
-			update_side_1_lamp_pulse_effect();
-		}
+//		if (g_sied_1_lamp_flow_effect_1_flag == 1){
+//			update_sied_1_lamp_flow_effect_1();
+//		}
+//
+//		if (g_sied_1_lamp_flow_effect_2_flag == 1){
+//			update_sied_1_lamp_flow_effect_2();
+//		}
+//
+//		if (g_side_1_lamp_pulse_effect_flag == 1){
+//			update_side_1_lamp_pulse_effect();
+//		}
 
 		if (g_strength_adc_flag == 1){
 			update_strength_adc();
@@ -2658,8 +2640,11 @@ void StartMainRecvTask(void *argument)
 			uint32_t timeout_value = 1 * freq;
 			if (diff >= timeout_value){
 				g_step_start = osKernelGetSysTimerCount();
+				//g_step_value = hlptim1.Instance->CNT;
 				g_step_value = g_step_count;
+				//hlptim1.Instance->CNT = 0;
 				g_step_count = 0;
+
 				if ((g_step_value != g_old_step_value) || (g_strength_value!=g_old_strength_value)){
 					put_two_int_and_one_byte_into_out_buffer(0x01, 0x05, g_step_value, g_strength_value, g_hall_detect_value);
 					if(g_step_value != g_old_step_value){
@@ -2772,17 +2757,20 @@ void StartWorkTask(void *argument)
 					}
 					else if(data_ptr[1] == 0x03){
 						g_step_count = 0;
-						HAL_LPTIM_Counter_Start_IT(&hlptim1, 32); //a circle generate 32 pulse.
+						//hlptim1.Instance->CNT = 0;
+						//HAL_LPTIM_Counter_Start_IT(&hlptim1, 32); //a circle generate 32 pulse.
 						//HAL_LPTIM_Counter_Start(&hlptim1, 32);
 						g_step_start = osKernelGetSysTimerCount();
 						// Start ADC Conversion
 						//HAL_ADC_Start_IT(&hadc2);
 						g_step_flag = 1;
+						HAL_TIM_IC_Start_IT(&htim1, TIM_CHANNEL_4);
 					}
 					else if(data_ptr[1] == 0x04 ){
 						//HAL_ADC_Stop_IT(&hadc2);
-						HAL_LPTIM_Counter_Stop_IT(&hlptim1);
+						//HAL_LPTIM_Counter_Stop_IT(&hlptim1);
 						//HAL_LPTIM_Counter_Stop(&hlptim1);
+						HAL_TIM_IC_Stop_IT(&htim1, TIM_CHANNEL_4);
 						g_strength_adc_flag = 0;
 						g_step_flag = 0;
 					}
@@ -3143,8 +3131,10 @@ void StartWorkTask(void *argument)
 					}
 				}
 				else if(data_ptr[0] == 0x10){
-					g_idle_mode = 0;  // work mode
-					put_no_data_into_out_buffer(0x010, 0x02);
+					if(data_ptr[1] == 0x01 ){
+						g_idle_mode = 0;  // work mode
+						put_no_data_into_out_buffer(0x010, 0x02);
+					}
 				}
 				else if(data_ptr[0] == 0x11){
 					if(data_ptr[1] == 0x02 ){
