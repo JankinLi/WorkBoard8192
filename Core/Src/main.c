@@ -166,12 +166,13 @@ uint32_t g_old_step_value = 0;		//temporary value of circle
 
 uint32_t g_strength_value = 0;  	//value of strength
 uint32_t g_old_strength_value = 0;	//temporary value of strength
+
 uint8_t g_strength_adc_flag = 0;
 uint32_t g_strength_adc_start = 0;
-
-//void HAL_LPTIM_AutoReloadMatchCallBack(LPTIM_HandleTypeDef *hlptim){
-//	g_step_count++;
-//}
+uint8_t g_strength_adc_calibration_flag = 0;
+uint8_t g_strength_adc_calibration_count = 0;
+uint32_t g_strength_adc_calibration_value = 0;
+const uint16_t g_strength_adc_calibration_default_value = 0x2C0;
 
 void HAL_TIM_IC_CaptureCallback(TIM_HandleTypeDef *htim){
 	if (htim->Channel == HAL_TIM_ACTIVE_CHANNEL_4){
@@ -754,8 +755,29 @@ void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc)
 		HAL_ADC_Stop_IT(&hadc2);
 		uint32_t ADC_VALUE = HAL_ADC_GetValue(&hadc2);
 
-		uint32_t Value_1=(uint32_t)((ADC_VALUE*3.3/4096)*1000);
-		g_strength_value = Value_1;
+		if (g_strength_adc_calibration_flag==1){
+			if (ADC_VALUE > g_strength_adc_calibration_value){
+				g_strength_adc_calibration_value = ADC_VALUE;
+			}
+		}
+		else{
+			if (g_strength_adc_calibration_value>0){
+				if (ADC_VALUE > g_strength_adc_calibration_value){
+					g_strength_value = ADC_VALUE;
+				}
+				else{
+					g_strength_value = 0;
+				}
+			}
+			else{
+				if (ADC_VALUE > g_strength_adc_calibration_default_value){
+					g_strength_value = ADC_VALUE;
+				}
+				else{
+					g_strength_value = 0;
+				}
+			}
+		}
 		g_strength_adc_start = osKernelGetSysTimerCount();
 		g_strength_adc_flag = 1;
 	}
@@ -769,6 +791,29 @@ void update_strength_adc(){
 	uint32_t timeout_value = 0.05 * freq;
 	if (diff >= timeout_value){
 		g_strength_adc_flag = 0;
+		HAL_ADC_Start_IT(&hadc2);
+	}
+}
+
+void update_strength_adc_calibration(){
+	uint32_t tick;
+	tick = osKernelGetSysTimerCount();
+	uint32_t diff = tick - g_strength_adc_start;
+	uint32_t freq = osKernelGetSysTimerFreq();
+	uint32_t timeout_value = 0.05 * freq;
+	if (diff >= timeout_value){
+		g_strength_adc_flag = 0;
+		g_strength_adc_calibration_count++;
+		if (g_strength_adc_calibration_count>=20){
+			g_strength_adc_calibration_flag = 0;
+			if (g_strength_adc_calibration_value > 0){
+				put_int_into_out_buffer(0x01, 0x02, g_strength_adc_calibration_value);
+			}
+			else{
+				put_int_into_out_buffer(0x01, 0x02, g_strength_adc_calibration_default_value);
+			}
+			return;
+		}
 		HAL_ADC_Start_IT(&hadc2);
 	}
 }
@@ -1580,7 +1625,6 @@ int main(void)
   // Calibrate The ADC On Power-Up For Better Accuracy
   uint32_t SingleDiff = ADC_SINGLE_ENDED;
   HAL_ADCEx_Calibration_Start(&hadc1, SingleDiff);
-  HAL_ADCEx_Calibration_Start(&hadc2, SingleDiff);
 
   /* USER CODE END 2 */
 
@@ -2635,7 +2679,12 @@ void StartMainRecvTask(void *argument)
 //		}
 
 		if (g_strength_adc_flag == 1){
-			update_strength_adc();
+			if (g_strength_adc_calibration_flag == 1){
+				update_strength_adc_calibration();
+			}
+			else{
+				update_strength_adc();
+			}
 		}
 
 		if (g_step_flag == 1 && g_idle_mode >=0){
@@ -2759,17 +2808,17 @@ void StartWorkTask(void *argument)
 				char* data_ptr = main_data_buffer[pos];
 				if (data_ptr[0] == 0x01){
 					if(data_ptr[1] == 0x01 ){
-						put_int_into_out_buffer(0x01, 0x02, 1024);
-
+						HAL_ADCEx_Calibration_Start(&hadc2, ADC_SINGLE_ENDED);
+						g_strength_adc_calibration_flag = 1;
+						g_strength_adc_calibration_count = 0;
+						g_strength_adc_calibration_value = 0;
+						HAL_ADC_Start_IT(&hadc2);
 					}
 					else if(data_ptr[1] == 0x03){
 						g_step_count = 0;
-						//hlptim1.Instance->CNT = 0;
-						//HAL_LPTIM_Counter_Start_IT(&hlptim1, 32); //a circle generate 32 pulse.
-						//HAL_LPTIM_Counter_Start(&hlptim1, 32);
 						g_step_start = osKernelGetSysTimerCount();
 						// Start ADC Conversion
-						//HAL_ADC_Start_IT(&hadc2);
+						HAL_ADC_Start_IT(&hadc2);
 						g_step_flag = 1;
 						g_capture_order = 0;
 						__HAL_TIM_SET_CAPTUREPOLARITY(&htim1, TIM_CHANNEL_4, TIM_INPUTCHANNELPOLARITY_RISING);
