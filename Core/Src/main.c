@@ -157,6 +157,7 @@ uint8_t g_hall_detect_report_flag = 0x00;
 
 uint8_t g_step_flag = 0;  //flag for 0x01
 
+uint8_t g_capture_order = 0;
 uint32_t g_step_count = 0;
 uint32_t g_step_start = 0;  		//time-stamp
 
@@ -173,10 +174,15 @@ uint32_t g_strength_adc_start = 0;
 //}
 
 void HAL_TIM_IC_CaptureCallback(TIM_HandleTypeDef *htim){
-	if (htim->Channel == HAL_TIM_ACTIVE_CHANNEL_1){
-		uint32_t Cap_Data1 = HAL_TIM_ReadCapturedValue(&htim1, TIM_CHANNEL_4);
-		if (Cap_Data1 != 0){
-			g_step_count = Cap_Data1;
+	if (htim->Channel == HAL_TIM_ACTIVE_CHANNEL_4){
+		if (g_capture_order == 0){
+			__HAL_TIM_SET_CAPTUREPOLARITY(&htim1, TIM_CHANNEL_4,TIM_INPUTCHANNELPOLARITY_FALLING);
+			g_capture_order++;
+		}
+		else if (g_capture_order == 1){
+			__HAL_TIM_SET_CAPTUREPOLARITY(&htim1, TIM_CHANNEL_4, TIM_INPUTCHANNELPOLARITY_RISING);
+			g_step_count++;
+			g_capture_order = 0;
 		}
 	}
 }
@@ -2644,6 +2650,7 @@ void StartMainRecvTask(void *argument)
 				g_step_value = g_step_count;
 				//hlptim1.Instance->CNT = 0;
 				g_step_count = 0;
+				g_capture_order = 0;
 
 				if ((g_step_value != g_old_step_value) || (g_strength_value!=g_old_strength_value)){
 					put_two_int_and_one_byte_into_out_buffer(0x01, 0x05, g_step_value, g_strength_value, g_hall_detect_value);
@@ -2764,6 +2771,8 @@ void StartWorkTask(void *argument)
 						// Start ADC Conversion
 						//HAL_ADC_Start_IT(&hadc2);
 						g_step_flag = 1;
+						g_capture_order = 0;
+						__HAL_TIM_SET_CAPTUREPOLARITY(&htim1, TIM_CHANNEL_4, TIM_INPUTCHANNELPOLARITY_RISING);
 						HAL_TIM_IC_Start_IT(&htim1, TIM_CHANNEL_4);
 					}
 					else if(data_ptr[1] == 0x04 ){
@@ -2773,6 +2782,8 @@ void StartWorkTask(void *argument)
 						HAL_TIM_IC_Stop_IT(&htim1, TIM_CHANNEL_4);
 						g_strength_adc_flag = 0;
 						g_step_flag = 0;
+						g_step_count = 0;
+						g_capture_order = 0;
 					}
 					else{
 						PutErrorCode(ErrorQueueHandle,0x03);
