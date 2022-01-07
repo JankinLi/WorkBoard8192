@@ -1020,6 +1020,8 @@ uint8_t g_side_2_lamp_flag = 0;
 uint8_t g_side_2_lamp_value[SIDE_LAMP_COUNT][3];
 uint32_t g_side_2_lamp_start = 0;
 
+void change_energy_lamp_color_IT();
+
 uint8_t compute_logo_final_value(){
 	uint8_t value = g_logo_lamp_value[g_logo_lamp_index][g_logo_lamp_pos];
 	uint8_t bit_value = ( value & ( 0x01 << g_logo_lamp_bit_index ) ) >> g_logo_lamp_bit_index;
@@ -1121,6 +1123,7 @@ void update_logo_lamp_pwm_value_with_IT(){
 			HAL_TIM_PWM_Stop(&htim1, TIM_CHANNEL_2);
 			HAL_TIM_Base_Stop_IT(&htim4);
 			if (g_start_lamp_order == 2){
+				g_start_lamp_order++;
 				change_energy_lamp_color_IT();
 			}
 			return;
