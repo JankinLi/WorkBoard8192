@@ -172,6 +172,7 @@ uint32_t g_strength_adc_start = 0;
 uint8_t g_strength_adc_calibration_flag = 0;
 uint8_t g_strength_adc_calibration_count = 0;
 uint32_t g_strength_adc_calibration_value = 0;
+uint32_t g_strength_adc_calibration_total_value = 0;
 const uint16_t g_strength_adc_calibration_default_value = 0x2C0;
 
 void HAL_TIM_IC_CaptureCallback(TIM_HandleTypeDef *htim){
@@ -755,13 +756,14 @@ void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc)
 		HAL_ADC_Stop_IT(&hadc2);
 		uint32_t ADC_VALUE = HAL_ADC_GetValue(&hadc2);
 
-		if (g_strength_adc_calibration_flag==1){
-			if (ADC_VALUE > g_strength_adc_calibration_value){
-				g_strength_adc_calibration_value = ADC_VALUE;
-			}
+		if (g_strength_adc_calibration_flag == 1){
+			g_strength_adc_calibration_total_value += ADC_VALUE;
+//			if (ADC_VALUE > g_strength_adc_calibration_value){
+//				g_strength_adc_calibration_value = ADC_VALUE;
+//			}
 		}
 		else{
-			if (g_strength_adc_calibration_value>0){
+			if (g_strength_adc_calibration_value > 0){
 				if (ADC_VALUE > g_strength_adc_calibration_value){
 					g_strength_value = ADC_VALUE;
 				}
@@ -806,6 +808,7 @@ void update_strength_adc_calibration(){
 		g_strength_adc_calibration_count++;
 		if (g_strength_adc_calibration_count>=20){
 			g_strength_adc_calibration_flag = 0;
+			g_strength_adc_calibration_value = (int)(g_strength_adc_calibration_total_value / 20);
 			if (g_strength_adc_calibration_value > 0){
 				put_int_into_out_buffer(0x01, 0x02, g_strength_adc_calibration_value);
 			}
@@ -954,6 +957,8 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) {
 		__HAL_GPIO_EXTI_CLEAR_IT(GPIO_Pin);
 	}
 }
+
+#define WAIT_Treset_COUNT 27
 
 // LOGO lamp
 #define LOGO_COUNT 23
@@ -1234,7 +1239,7 @@ void update_energy_lamp_pwm_value_with_IT(){
 	if (g_energy_lamp_wait_flag == 0x01){
 		TIM1->CCR3 = 0;
 		g_energy_lamp_wait_index++;
-		if (g_energy_lamp_wait_index < 67){
+		if (g_energy_lamp_wait_index < WAIT_Treset_COUNT){
 			return;
 		}
 
@@ -1247,6 +1252,9 @@ void update_energy_lamp_pwm_value_with_IT(){
 			HAL_TIM_Base_Stop_IT(&htim4);
 			return;
 		}
+		uint8_t final_value = compute_energy_final_value();
+		TIM1->CCR3 = final_value;
+		return;
 	}
 
 	if (g_energy_lamp_bit_index == 0){
@@ -2002,9 +2010,9 @@ static void MX_TIM2_Init(void)
 
   /* USER CODE END TIM2_Init 1 */
   htim2.Instance = TIM2;
-  htim2.Init.Prescaler = 120;
+  htim2.Init.Prescaler = 119;
   htim2.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim2.Init.Period = 20;
+  htim2.Init.Period = 19;
   htim2.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
   htim2.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
   if (HAL_TIM_Base_Init(&htim2) != HAL_OK)
@@ -2061,9 +2069,9 @@ static void MX_TIM3_Init(void)
 
   /* USER CODE END TIM3_Init 1 */
   htim3.Instance = TIM3;
-  htim3.Init.Prescaler = 120;
+  htim3.Init.Prescaler = 119;
   htim3.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim3.Init.Period = 20;
+  htim3.Init.Period = 19;
   htim3.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
   htim3.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
   if (HAL_TIM_Base_Init(&htim3) != HAL_OK)
@@ -2166,9 +2174,9 @@ static void MX_TIM8_Init(void)
 
   /* USER CODE END TIM8_Init 1 */
   htim8.Instance = TIM8;
-  htim8.Init.Prescaler = 120;
+  htim8.Init.Prescaler = 119;
   htim8.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim8.Init.Period = 20;
+  htim8.Init.Period = 19;
   htim8.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
   htim8.Init.RepetitionCounter = 0;
   htim8.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
@@ -2817,7 +2825,6 @@ void StartWorkTask(void *argument)
 					else if(data_ptr[1] == 0x03){
 						g_step_count = 0;
 						g_step_start = osKernelGetSysTimerCount();
-						// Start ADC Conversion
 						HAL_ADC_Start_IT(&hadc2);
 						g_step_flag = 1;
 						g_capture_order = 0;
@@ -2825,9 +2832,7 @@ void StartWorkTask(void *argument)
 						HAL_TIM_IC_Start_IT(&htim1, TIM_CHANNEL_4);
 					}
 					else if(data_ptr[1] == 0x04 ){
-						//HAL_ADC_Stop_IT(&hadc2);
-						//HAL_LPTIM_Counter_Stop_IT(&hlptim1);
-						//HAL_LPTIM_Counter_Stop(&hlptim1);
+						HAL_ADC_Stop_IT(&hadc2);
 						HAL_TIM_IC_Stop_IT(&htim1, TIM_CHANNEL_4);
 						g_strength_adc_flag = 0;
 						g_step_flag = 0;
@@ -2916,7 +2921,7 @@ void StartWorkTask(void *argument)
 							else{
 								if (value_1 == 0x01){
 									g_fan_1_value = value_2;
-									TIM3->CCR2 = (htim3.Init.Period * g_fan_1_value) / 20u;  // fan 1
+									TIM3->CCR2 = g_fan_1_value;  // fan 1
 									HAL_GPIO_WritePin(GPIOB, GPIO_PIN_4, GPIO_PIN_SET);
 									HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_2);
 								}
@@ -2943,7 +2948,7 @@ void StartWorkTask(void *argument)
 							else{
 								if (value_1 == 0x01){
 									g_fan_2_value = value_2;
-									TIM8->CCR3 = (htim8.Init.Period * g_fan_2_value) / 20u;  // fan 2
+									TIM8->CCR3 = g_fan_2_value;  // fan 2
 									HAL_GPIO_WritePin(GPIOC, GPIO_PIN_12, GPIO_PIN_SET);
 									HAL_TIM_PWM_Start(&htim8, TIM_CHANNEL_3);
 								}
@@ -2970,7 +2975,7 @@ void StartWorkTask(void *argument)
 							else{
 								if (value_1 == 0x01){
 									g_fan_3_value = value_2;
-									TIM2->CCR4 = (htim2.Init.Period * g_fan_3_value) / 20u;  // fan 3
+									TIM2->CCR4 = g_fan_3_value;  // fan 3
 									HAL_GPIO_WritePin(GPIOA, GPIO_PIN_9, GPIO_PIN_SET);
 									HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_4);
 								}
@@ -2997,7 +3002,7 @@ void StartWorkTask(void *argument)
 							else{
 								if (value_1 == 0x01){
 									g_fan_4_value = value_2;
-									TIM8->CCR1 = (htim8.Init.Period * g_fan_4_value) / 20u;  //fan 4
+									TIM8->CCR1 = g_fan_4_value;  //fan 4
 									HAL_GPIO_WritePin(GPIOB, GPIO_PIN_15, GPIO_PIN_SET);
 									HAL_TIM_PWM_Start(&htim8, TIM_CHANNEL_1);
 								}
