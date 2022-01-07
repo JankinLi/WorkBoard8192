@@ -67,6 +67,9 @@ extern TIM_HandleTypeDef htim6;
 /* USER CODE BEGIN EV */
 extern uint8_t g_energy_lamp_flag;
 void update_energy_lamp_pwm_value_with_IT();
+
+extern uint8_t g_logo_lamp_flag;
+void update_logo_lamp_pwm_value_with_IT();
 /* USER CODE END EV */
 
 /******************************************************************************/
@@ -260,6 +263,9 @@ void TIM4_IRQHandler(void)
   /* USER CODE BEGIN TIM4_IRQn 0 */
 	if (g_energy_lamp_flag == 1){
 		update_energy_lamp_pwm_value_with_IT();
+	}
+	if (g_logo_lamp_flag == 1){
+		update_logo_lamp_pwm_value_with_IT();
 	}
   /* USER CODE END TIM4_IRQn 0 */
   HAL_TIM_IRQHandler(&htim4);
