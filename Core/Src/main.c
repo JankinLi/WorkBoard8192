@@ -960,7 +960,7 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) {
 
 uint8_t g_start_lamp_order = 0;
 
-#define WAIT_Treset_COUNT 27
+#define WAIT_Treset_COUNT 67
 
 // LOGO lamp
 #define LOGO_COUNT 23
@@ -1079,6 +1079,7 @@ void start_logo_lamp_pwm_with_IT(){
 void stop_update_logo_lamp_pwm_value(){
 	g_logo_lamp_flag = 0;
 	HAL_TIM_PWM_Stop(&htim1, TIM_CHANNEL_2);
+	HAL_TIM_Base_Stop_IT(&htim4);
 }
 
 //void fill_logo_lamp_color(){
@@ -1231,7 +1232,7 @@ uint8_t compute_energy_final_value(){
 //	}
 //}
 
-void stop_update_energy_lamp_pwn_value(){
+void stop_update_energy_lamp_pwm_value(){
 	g_energy_lamp_flag = 0;
 	HAL_TIM_PWM_Stop(&htim1, TIM_CHANNEL_3);
 	HAL_TIM_Base_Stop_IT(&htim4);
@@ -2740,9 +2741,9 @@ void StartMainRecvTask(void *argument)
 
 	uint32_t default_color = 0x00FFFF;
 
-	g_start_lamp_order = 2;
+	//g_start_lamp_order = 2;
 	g_logo_lamp_color_value = default_color;
-	change_logo_lamp_color_IT();
+	//change_logo_lamp_color_IT();
 
 	g_energy_lamp_color_value = default_color;
 
@@ -3175,19 +3176,19 @@ void StartWorkTask(void *argument)
 								uint32_t color_value = (value_red << 16) | (value_green << 8) | value_blue;
 								g_energy_lamp_color_value = color_value;
 								if (g_energy_lamp_effect == 0x01){
-									stop_update_energy_lamp_pwn_value();
+									stop_update_energy_lamp_pwm_value();
 									//fill_energy_lamp_color();
 									change_energy_lamp_color_IT();
 								}
 								else if(g_energy_lamp_effect == 0x02){
 									uint8_t energy_lamp_count = data_ptr[5];
-									stop_update_energy_lamp_pwn_value();
+									stop_update_energy_lamp_pwm_value();
 									//fill_energy_lamp_circle_count(energy_lamp_count);
 									change_energy_lamp_with_circle_count_IT(energy_lamp_count);
 								}
 							}
 							else if (value_on == 0x02){
-								stop_update_energy_lamp_pwn_value();
+								stop_update_energy_lamp_pwm_value();
 								//fill_energy_lamp_blank();
 								change_energy_lamp_black_IT();
 							}
