@@ -960,7 +960,7 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) {
 
 uint8_t g_start_lamp_order = 0;
 
-#define WAIT_Treset_COUNT 67
+#define WAIT_Treset_COUNT 3
 
 // LOGO lamp
 #define LOGO_COUNT 23
@@ -3206,7 +3206,7 @@ void StartWorkTask(void *argument)
 						uint8_t red_value = (color_value & 0xFF0000) >> 16;
 						uint8_t green_value = (color_value & 0x00FF00) >> 8;
 						uint8_t blue_value = (color_value & 0x0000FF);
-						put_five_bytes_into_out_buffer(0x0C, 0x03, g_energy_lamp_value_on, red_value, green_value, blue_value, g_energy_lamp_effect);
+						put_five_bytes_into_out_buffer(0x0B, 0x03, g_energy_lamp_value_on, red_value, green_value, blue_value, g_energy_lamp_effect);
 					}
 					else{
 						PutErrorCode(ErrorQueueHandle,0x03);
