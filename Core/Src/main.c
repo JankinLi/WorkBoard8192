@@ -2776,8 +2776,8 @@ void StartMainRecvTask(void *argument)
 	//HAL_GPIO_WritePin(GPIOC, GPIO_PIN_1, GPIO_PIN_SET);
 	//HAL_GPIO_WritePin(GPIOC, GPIO_PIN_2, GPIO_PIN_RESET);
 
-	TIM1->CCR3 = 0;
-	HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_3);
+	//TIM1->CCR3 = 0;
+	//HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_3);
 
 	//g_start_lamp_order = 2;
 	g_logo_lamp_color_value = default_color;
