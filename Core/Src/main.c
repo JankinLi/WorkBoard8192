@@ -960,7 +960,7 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) {
 
 uint8_t g_start_lamp_order = 0;
 
-#define WAIT_Treset_COUNT 3
+#define WAIT_Treset_COUNT 67
 
 // LOGO lamp
 #define LOGO_COUNT 23
@@ -1030,20 +1030,6 @@ uint8_t compute_logo_final_value(){
 		final_val = 3;
 	}
 	return final_val;
-}
-
-void start_logo_lamp_pwm_with_IT(){
-	g_logo_lamp_flag = 1;
-	g_logo_lamp_wait_flag = 0;
-	g_logo_lamp_wait_index = 0;
-	g_logo_lamp_pos = 0;
-	g_logo_lamp_index = 0;
-	g_logo_lamp_bit_index = 7;
-
-	uint8_t final_value = compute_logo_final_value();
-	TIM1->CCR2 = final_value;
-	HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_2);  //TIM1_CH2
-	HAL_TIM_Base_Start_IT(&htim4);
 }
 
 //void update_logo_lamp_pwm_value(){
@@ -1118,17 +1104,6 @@ void update_logo_lamp_pwm_value_with_IT(){
 
 		g_logo_lamp_wait_flag = 0;
 		g_logo_lamp_wait_index = 0;
-		g_logo_lamp_index++;
-		if (g_logo_lamp_index >= LOGO_COUNT){
-			g_logo_lamp_flag = 0;
-			HAL_TIM_PWM_Stop(&htim1, TIM_CHANNEL_2);
-			HAL_TIM_Base_Stop_IT(&htim4);
-			if (g_start_lamp_order == 2){
-				g_start_lamp_order++;
-				change_energy_lamp_color_IT();
-			}
-			return;
-		}
 		uint8_t final_value = compute_logo_final_value();
 		TIM1->CCR2 = final_value;
 		return;
@@ -1139,10 +1114,18 @@ void update_logo_lamp_pwm_value_with_IT(){
 		g_logo_lamp_pos++;
 		if (g_logo_lamp_pos>2){
 			g_logo_lamp_pos = 0;
-			g_logo_lamp_wait_flag = 0x01;
-			g_logo_lamp_wait_index = 0x00;
-			TIM1->CCR2 = 0;
-			return;
+
+			g_logo_lamp_index++;
+			if (g_logo_lamp_index >= LOGO_COUNT){
+				g_logo_lamp_flag = 0;
+				HAL_TIM_PWM_Stop(&htim1, TIM_CHANNEL_2);
+				HAL_TIM_Base_Stop_IT(&htim4);
+				if (g_start_lamp_order == 2){
+					g_start_lamp_order++;
+					change_energy_lamp_color_IT();
+				}
+				return;
+			}
 		}
 	}
 	else{
@@ -1150,6 +1133,19 @@ void update_logo_lamp_pwm_value_with_IT(){
 	}
 	uint8_t final_value = compute_logo_final_value();
 	TIM1->CCR2 = final_value;
+}
+
+void start_logo_lamp_pwm_with_IT(){
+	g_logo_lamp_flag = 1;
+	g_logo_lamp_wait_flag = 1;
+	g_logo_lamp_wait_index = 0;
+	g_logo_lamp_pos = 0;
+	g_logo_lamp_index = 0;
+	g_logo_lamp_bit_index = 7;
+
+	TIM1->CCR2 = 0;
+	HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_2);  //TIM1_CH2
+	HAL_TIM_Base_Start_IT(&htim4);
 }
 
 void change_logo_lamp_color_IT(){
@@ -1191,128 +1187,148 @@ uint8_t compute_energy_final_value(){
 	return final_val;
 }
 
-//void start_energy_lamp_pwm(){
-//	g_energy_lamp_flag = 1;
-//	g_energy_lamp_start = osKernelGetSysTimerCount();
-//	g_energy_lamp_pos = 0;
-//	g_energy_lamp_index = 0;
-//	g_energy_lamp_bit_index = 7;
-//
-//	uint8_t final_value = compute_energy_final_value();
-//	TIM1->CCR3 = (htim1.Init.Period * final_value) / 4u;
-//	HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_3);  //TIM1_CH3
-//}
-
-//void update_energy_lamp_pwm_value(){
-//	uint32_t tick;
-//	tick = osKernelGetSysTimerCount();
-//	uint32_t diff = tick - g_energy_lamp_start;
-//	uint32_t freq = osKernelGetSysTimerFreq();
-//	uint32_t timeout_value = 0.0000012 * freq;
-//	if (diff >= timeout_value){
-//		if (g_energy_lamp_bit_index == 0){
-//			g_energy_lamp_bit_index = 7;
-//			g_energy_lamp_pos++;
-//			if (g_energy_lamp_pos>2){
-//				g_energy_lamp_pos = 0;
-//				g_energy_lamp_index++;
-//				if (g_energy_lamp_index >= ENERGY_COUNT){
-//					g_energy_lamp_flag = 0;
-//					HAL_TIM_PWM_Stop(&htim1, TIM_CHANNEL_3);
-//					return;
-//				}
-//			}
-//		}
-//		else{
-//			g_energy_lamp_bit_index--;
-//		}
-//		uint8_t final_value = compute_energy_final_value();
-//		TIM1->CCR3 = (htim1.Init.Period * final_value) / 4u;
-//		g_energy_lamp_start = osKernelGetSysTimerCount();
-//	}
-//}
-
 void stop_update_energy_lamp_pwm_value(){
 	g_energy_lamp_flag = 0;
-	HAL_TIM_PWM_Stop(&htim1, TIM_CHANNEL_3);
-	HAL_TIM_Base_Stop_IT(&htim4);
+	TIM1->CCR3 = 0;
+	//HAL_TIM_PWM_Stop(&htim1, TIM_CHANNEL_3);
+	//HAL_GPIO_WritePin(GPIOC, GPIO_PIN_2, GPIO_PIN_RESET);
+	//HAL_TIM_Base_Stop_IT(&htim4);
 }
 
-//void fill_energy_lamp_color(){
-//	uint32_t color_value = g_energy_lamp_color_value;
-//
-//	uint8_t red_value = (color_value & 0xFF0000) >> 16;
-//	uint8_t green_value = (color_value & 0x00FF00) >> 8;
-//	uint8_t blue_value = (color_value & 0x0000FF);
-//
-//	uint8_t i=0;
-//	for(i=0; i< ENERGY_COUNT; i++){
-//		g_energy_lamp_value[i][0] = red_value;
-//		g_energy_lamp_value[i][1] = green_value;
-//		g_energy_lamp_value[i][2] = blue_value;
-//	}
-//	start_energy_lamp_pwm();
-//}
+void start_energy_lamp_pwm(){
+	g_energy_lamp_flag = 1;
+	g_energy_lamp_start = osKernelGetSysTimerCount();
+	g_energy_lamp_pos = 0;
+	g_energy_lamp_index = 0;
+	g_energy_lamp_bit_index = 7;
+	g_energy_lamp_wait_flag = 1;
 
-//void fill_energy_lamp_blank(){
-//	uint8_t i=0;
-//	for(i=0; i< ENERGY_COUNT; i++){
-//		g_energy_lamp_value[i][0] = 0x00;
-//		g_energy_lamp_value[i][1] = 0x00;
-//		g_energy_lamp_value[i][2] = 0x00;
-//	}
-//	start_energy_lamp_pwm();
-//}
+	//uint8_t final_value = compute_energy_final_value();
+	TIM1->CCR3 = 0;
+	//HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_3);  //TIM1_CH3
+}
 
-//void fill_energy_lamp_count(uint8_t count){
-//
-//	uint32_t color_value = g_energy_lamp_color_value;
-//
-//	uint8_t red_value = (color_value & 0xFF0000) >> 16;
-//	uint8_t green_value = (color_value & 0x00FF00) >> 8;
-//	uint8_t blue_value = (color_value & 0x0000FF);
-//
-//	uint8_t i=0;
-//	for(i=0; i< count; i++){
-//		g_energy_lamp_value[i][0] = red_value;
-//		g_energy_lamp_value[i][1] = green_value;
-//		g_energy_lamp_value[i][2] = blue_value;
-//	}
-//	for(i=count; i< ENERGY_COUNT; i++){
-//		g_energy_lamp_value[i][0] = 0x00;
-//		g_energy_lamp_value[i][1] = 0x00;
-//		g_energy_lamp_value[i][2] = 0x00;
-//	}
-//	start_energy_lamp_pwm();
-//}
-//
-//void fill_energy_lamp_circle_count(uint8_t circle_count){
-//	uint8_t count = 1;
-//	if (circle_count>100){
-//		count = 21;
-//	}
-//	else{
-//		if ((circle_count % 5) == 0){
-//			count = circle_count / 5;
-//		}
-//		else{
-//			count = circle_count / 5 + 1;
-//		}
-//	}
-//	fill_energy_lamp_count(count);
-//}
+void update_energy_lamp_pwm_value(){
+	uint32_t tick;
+	tick = osKernelGetSysTimerCount();
+	uint32_t diff = tick - g_energy_lamp_start;
+	uint32_t freq = osKernelGetSysTimerFreq();
+	uint32_t timeout_value = 0.0000012 * freq;
+	uint32_t timeout_value_wait = 0.00008 * freq;
+	//uint32_t timeout_value_wait_2 = 0.000001 * freq;
+
+	if (g_energy_lamp_wait_flag == 1){
+		if (diff >= timeout_value_wait){
+			g_energy_lamp_wait_flag = 0;
+			uint8_t final_value = compute_energy_final_value();
+			TIM1->CCR3 = final_value;
+			g_energy_lamp_start = osKernelGetSysTimerCount();
+			return;
+		}
+		else{
+			TIM1->CCR3 = 0;
+			return;
+		}
+	}
+
+	if (diff >= timeout_value){
+		if (g_energy_lamp_bit_index == 0){
+			g_energy_lamp_bit_index = 7;
+			g_energy_lamp_pos++;
+			if (g_energy_lamp_pos>2){
+				g_energy_lamp_pos = 0;
+				g_energy_lamp_index++;
+				if (g_energy_lamp_index >= ENERGY_COUNT){
+					TIM1->CCR3 = 0;
+					stop_update_energy_lamp_pwm_value();
+					//start_energy_lamp_pwm();
+					return;
+				}
+			}
+		}
+		else{
+			g_energy_lamp_bit_index--;
+		}
+		uint8_t final_value = compute_energy_final_value();
+		TIM1->CCR3 = final_value;
+		g_energy_lamp_start = osKernelGetSysTimerCount();
+	}
+}
+
+void fill_energy_lamp_color(){
+	uint32_t color_value = g_energy_lamp_color_value;
+
+	uint8_t red_value = (color_value & 0xFF0000) >> 16;
+	uint8_t green_value = (color_value & 0x00FF00) >> 8;
+	uint8_t blue_value = (color_value & 0x0000FF);
+
+	uint8_t i=0;
+	for(i=0; i< ENERGY_COUNT; i++){
+		g_energy_lamp_value[i][0] = red_value;
+		g_energy_lamp_value[i][1] = green_value;
+		g_energy_lamp_value[i][2] = blue_value;
+	}
+	start_energy_lamp_pwm();
+}
+
+void fill_energy_lamp_black(){
+	uint8_t i=0;
+	for(i=0; i< ENERGY_COUNT; i++){
+		g_energy_lamp_value[i][0] = 0x00;
+		g_energy_lamp_value[i][1] = 0x00;
+		g_energy_lamp_value[i][2] = 0x00;
+	}
+	start_energy_lamp_pwm();
+}
+
+void fill_energy_lamp_count(uint8_t count){
+
+	uint32_t color_value = g_energy_lamp_color_value;
+
+	uint8_t red_value = (color_value & 0xFF0000) >> 16;
+	uint8_t green_value = (color_value & 0x00FF00) >> 8;
+	uint8_t blue_value = (color_value & 0x0000FF);
+
+	uint8_t i=0;
+	for(i=0; i< count; i++){
+		g_energy_lamp_value[i][0] = red_value;
+		g_energy_lamp_value[i][1] = green_value;
+		g_energy_lamp_value[i][2] = blue_value;
+	}
+	for(i=count; i< ENERGY_COUNT; i++){
+		g_energy_lamp_value[i][0] = 0x00;
+		g_energy_lamp_value[i][1] = 0x00;
+		g_energy_lamp_value[i][2] = 0x00;
+	}
+	start_energy_lamp_pwm();
+}
+
+void fill_energy_lamp_circle_count(uint8_t circle_count){
+	uint8_t count = 1;
+	if (circle_count>100){
+		count = 21;
+	}
+	else{
+		if ((circle_count % 5) == 0){
+			count = circle_count / 5;
+		}
+		else{
+			count = circle_count / 5 + 1;
+		}
+	}
+	fill_energy_lamp_count(count);
+}
 
 //energy lamp with IT
 void start_energy_lamp_pwm_with_IT(){
 	g_energy_lamp_flag = 1;
 	g_energy_lamp_pos = 0;
-	g_energy_lamp_wait_flag = 0;
+	g_energy_lamp_wait_flag = 1;
 	g_energy_lamp_wait_index = 0;
 	g_energy_lamp_index = 0;
 	g_energy_lamp_bit_index = 7;
 
-	uint8_t final_value = compute_energy_final_value();
-	TIM1->CCR3 = final_value;
+	TIM1->CCR3 = 0;
 	HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_3);  //TIM1_CH3
 	HAL_TIM_Base_Start_IT(&htim4);
 }
@@ -1327,13 +1343,7 @@ void update_energy_lamp_pwm_value_with_IT(){
 
 		g_energy_lamp_wait_flag = 0;
 		g_energy_lamp_wait_index = 0;
-		g_energy_lamp_index++;
-		if (g_energy_lamp_index >= ENERGY_COUNT){
-			g_energy_lamp_flag = 0;
-			HAL_TIM_PWM_Stop(&htim1, TIM_CHANNEL_3);
-			HAL_TIM_Base_Stop_IT(&htim4);
-			return;
-		}
+
 		uint8_t final_value = compute_energy_final_value();
 		TIM1->CCR3 = final_value;
 		return;
@@ -1344,10 +1354,13 @@ void update_energy_lamp_pwm_value_with_IT(){
 		g_energy_lamp_pos++;
 		if (g_energy_lamp_pos>2){
 			g_energy_lamp_pos = 0;
-			g_energy_lamp_wait_flag = 0x01;
-			g_energy_lamp_wait_index = 0x00;
-			TIM1->CCR3 = 0;
-			return;
+			g_energy_lamp_index++;
+			if (g_energy_lamp_index >= ENERGY_COUNT){
+				g_energy_lamp_flag = 0;
+				HAL_TIM_PWM_Stop(&htim1, TIM_CHANNEL_3);
+				HAL_TIM_Base_Stop_IT(&htim4);
+				return;
+			}
 		}
 	}
 	else{
@@ -1647,6 +1660,24 @@ void update_side_1_lamp_pulse_effect(){
 
 void start_side_1_lamp_revolving_scenic_lantern_effect(uint8_t circle_count){
 	// TODO
+}
+
+uint8_t g_mersure_tim4_flag = 0;
+uint8_t g_mersure_tim4_count = 0;
+uint32_t g_mersure_start = 0;
+uint32_t g_mersure_tim4_value = 0;
+void update_mersure_tim4(){
+	if (g_mersure_tim4_count == 0){
+		g_mersure_tim4_count =1;
+		g_mersure_start = osKernelGetSysTimerCount();
+	}
+	else if(g_mersure_tim4_count == 1){
+		g_mersure_tim4_count =2;
+		uint32_t now_tick = osKernelGetSysTimerCount();
+		g_mersure_tim4_value = now_tick - g_mersure_start;
+		g_mersure_tim4_flag = 0;
+		HAL_TIM_Base_Stop_IT(&htim4);
+	}
 }
 
 /* USER CODE END 0 */
@@ -2209,9 +2240,9 @@ static void MX_TIM4_Init(void)
 
   /* USER CODE END TIM4_Init 1 */
   htim4.Instance = TIM4;
-  htim4.Init.Prescaler = 17;
+  htim4.Init.Prescaler = 18;
   htim4.Init.CounterMode = TIM_COUNTERMODE_DOWN;
-  htim4.Init.Period = 3;
+  htim4.Init.Period = 4;
   htim4.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
   htim4.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
   if (HAL_TIM_Base_Init(&htim4) != HAL_OK)
@@ -2741,6 +2772,13 @@ void StartMainRecvTask(void *argument)
 
 	uint32_t default_color = 0x00FFFF;
 
+
+	//HAL_GPIO_WritePin(GPIOC, GPIO_PIN_1, GPIO_PIN_SET);
+	//HAL_GPIO_WritePin(GPIOC, GPIO_PIN_2, GPIO_PIN_RESET);
+
+	TIM1->CCR3 = 0;
+	HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_3);
+
 	//g_start_lamp_order = 2;
 	g_logo_lamp_color_value = default_color;
 	//change_logo_lamp_color_IT();
@@ -2858,6 +2896,10 @@ void StartMainRecvTask(void *argument)
 
 		if (g_motor_2 > 0){
 			update_motor_2_action();
+		}
+
+		if (g_energy_lamp_flag == 1){
+			update_energy_lamp_pwm_value();
 		}
 
 		osDelay(1);
@@ -3177,20 +3219,20 @@ void StartWorkTask(void *argument)
 								g_energy_lamp_color_value = color_value;
 								if (g_energy_lamp_effect == 0x01){
 									stop_update_energy_lamp_pwm_value();
-									//fill_energy_lamp_color();
-									change_energy_lamp_color_IT();
+									fill_energy_lamp_color();
+									//change_energy_lamp_color_IT();
 								}
 								else if(g_energy_lamp_effect == 0x02){
 									uint8_t energy_lamp_count = data_ptr[5];
 									stop_update_energy_lamp_pwm_value();
-									//fill_energy_lamp_circle_count(energy_lamp_count);
-									change_energy_lamp_with_circle_count_IT(energy_lamp_count);
+									fill_energy_lamp_circle_count(energy_lamp_count);
+									//change_energy_lamp_with_circle_count_IT(energy_lamp_count);
 								}
 							}
 							else if (value_on == 0x02){
 								stop_update_energy_lamp_pwm_value();
-								//fill_energy_lamp_blank();
-								change_energy_lamp_black_IT();
+								fill_energy_lamp_black();
+								//change_energy_lamp_black_IT();
 							}
 							else{
 								PutErrorCode(ErrorQueueHandle,0x08);
@@ -3289,6 +3331,20 @@ void StartWorkTask(void *argument)
 						PutErrorCode(ErrorQueueHandle,0x03);
 					}
 				}
+//				else if(data_ptr[0] == 0xF0){
+//					if (data_ptr[1] == 0x01){
+//						HAL_TIM_Base_Start_IT(&htim4);
+//						g_mersure_tim4_count = 0;
+//						g_mersure_tim4_flag = 1;
+//						put_no_data_into_out_buffer(0xf0, 0x02);
+//					}
+//					else if (data_ptr[1] == 0x03){
+//						put_int_into_out_buffer(0xf0, 0x04, g_mersure_tim4_value);
+//					}
+//					else if (data_ptr[1] == 0x05){
+//						HAL_TIM_Base_Stop_IT(&htim4);
+//					}
+//				}
 				else{
 					PutErrorCode(ErrorQueueHandle,0x02);
 				}
@@ -3435,8 +3491,13 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
   if (htim->Instance == TIM6) {
     HAL_IncTick();
   }
-  /* USER CODE BEGIN Callback 1 */
 
+  /* USER CODE BEGIN Callback 1 */
+//  if (htim->Instance == TIM4) {
+//	  if (g_mersure_tim4_flag == 1){
+//		  update_mersure_tim4();
+//	  }
+//  }
   /* USER CODE END Callback 1 */
 }
 
