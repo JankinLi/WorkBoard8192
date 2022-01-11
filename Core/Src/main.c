@@ -1855,8 +1855,8 @@ int main(void)
   MX_ADC2_Init();
   /* USER CODE BEGIN 2 */
 
-  //__HAL_TIM_CLEAR_IT(&htim1, TIM_IT_UPDATE);
-  //HAL_TIM_Base_Start_IT(&htim1);
+  __HAL_TIM_CLEAR_IT(&htim1, TIM_IT_UPDATE);
+  HAL_TIM_Base_Start_IT(&htim1);
 
   __HAL_TIM_CLEAR_IT(&htim2, TIM_IT_UPDATE);
   HAL_TIM_Base_Start_IT(&htim2);
