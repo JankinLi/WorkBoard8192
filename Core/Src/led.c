@@ -17,7 +17,8 @@ extern TIM_HandleTypeDef htim1;
 #define BUFFER_LED_LEN  LED_NUM*24
 #define BUFFER_LEN (TRST_LEN + BUFFER_LED_LEN + TRST_LEN)
 
-uint16_t pwm_buffer[BUFFER_LEN];
+#define DMA_TYPE  uint8_t
+__attribute__((aligned(4))) volatile  DMA_TYPE pwm_buffer[BUFFER_LEN];
 
 int pwm_send_flag=0;
 
@@ -27,14 +28,9 @@ void HAL_TIM_PWM_PulseFinishedCallback(TIM_HandleTypeDef *htim)
 	pwm_send_flag=1;
 }
 
-// void HAL_TIM_PWM_PulseFinishedHalfCpltCallback(TIM_HandleTypeDef *htim)
-// {
-// 	pwm_send_flag=0;
-// }
-
-void color_convert(uint16_t* buffer,uint32_t led_color)
+void color_convert(DMA_TYPE* buffer,uint32_t led_color)
 {
-    uint16_t bit_value = 0;
+    DMA_TYPE bit_value = 0;
     for(int i = 0; i < 24; i++){
       bit_value = (led_color >> (23 - i)) & 0x01;
       if (bit_value == 0){
@@ -49,14 +45,16 @@ void color_convert(uint16_t* buffer,uint32_t led_color)
 void make_led_pwm(uint32_t led_color)
 {
   int i = 0;
-  uint16_t* p_buffer;
+  DMA_TYPE* p_buffer;
+
+  p_buffer = (DMA_TYPE*)pwm_buffer;
     // TRST Buffer
   while (i < TRST_LEN){
-    pwm_buffer[i] = DUTY_RESET;
+    p_buffer[i] = DUTY_RESET;
     i++;
   }
 
-  p_buffer = pwm_buffer + i;
+  p_buffer = (DMA_TYPE*)pwm_buffer + i;
   while (i < BUFFER_LED_LEN + TRST_LEN){
       color_convert(p_buffer,led_color);
       i += 24;
@@ -64,7 +62,7 @@ void make_led_pwm(uint32_t led_color)
   }
 
   while(i < BUFFER_LEN){
-    pwm_buffer[i] = DUTY_RESET;
+    p_buffer[i] = DUTY_RESET;
     i++;
   }
 }
