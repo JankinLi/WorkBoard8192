@@ -5,8 +5,11 @@ extern TIM_HandleTypeDef htim1;
 
 #define LED_COUNT 100
 
-#define DUTY_0 20 // 26% of 75  WS2812 = 32%
-#define DUTY_1 56 // 75% of 75  WS2812 = 62%
+// #define DUTY_0 20 // 26% of 75  WS2812 = 32%
+// #define DUTY_1 56 // 75% of 75  WS2812 = 62%
+
+#define DUTY_0 1 //20 // 26% of 75  WS2812 = 32%
+#define DUTY_1 3 //56 // 75% of 75  WS2812 = 62%
 #define DUTY_RESET 0
 
 #define LED_NUM 21
