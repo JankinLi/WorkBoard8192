@@ -7,26 +7,16 @@ extern TIM_HandleTypeDef htim1;
 #define DUTY_1 3 //56 // 75% of 75  WS2812 = 62%
 #define DUTY_RESET 0
 
-//#define LED_NUM 21
-
 #define TRST_LEN 64 // 64*1.25 = 80us
-
-//#define BUFFER_LED_LEN  LED_NUM*24
-//#define BUFFER_LEN (TRST_LEN + BUFFER_LED_LEN + TRST_LEN)
 
 #define DMA_TYPE  uint8_t
 
 //__attribute__((aligned(4))) volatile  DMA_TYPE pwm_buffer[BUFFER_LEN];
 
-//int pwm_send_flag=0;
-
 //void HAL_TIM_PWM_PulseFinishedCallback(TIM_HandleTypeDef *htim)
 //{
 //	HAL_TIM_PWM_Stop_DMA(&htim1, TIM_CHANNEL_3);
-//	pwm_send_flag=1;
 //}
-
-
 
 //void make_led_pwm(uint32_t led_color)
 //{
