@@ -75,10 +75,11 @@ void led_dma_send()
   }
   // HAL_Delay(10);
   // HAL_TIM_PWM_Stop_DMA(&htim1,TIM_CHANNEL_3);
-   while(!pwm_send_flag){
-     HAL_Delay(1);
-	//   //osDelay(1);
-   }
 
-  pwm_send_flag = 0;
+//   while(!pwm_send_flag){
+//     HAL_Delay(1);
+//	//   //osDelay(1);
+//   }
+//
+//  pwm_send_flag = 0;
 }
