@@ -1001,8 +1001,28 @@ uint32_t g_logo_lamp_color_value;
 #define BUFFER_LOGO_LED_LEN  LOGO_COUNT*24
 #define BUFFER_LOGO_BUFFER_LEN (TRST_LEN + BUFFER_LOGO_LED_LEN + TRST_LEN)
 
-__attribute__((aligned(4))) volatile  DMA_TYPE g_logo_lamp_value[BUFFER_LOGO_BUFFER_LEN];
+__attribute__((aligned(4))) volatile DMA_TYPE g_logo_lamp_value[BUFFER_LOGO_BUFFER_LEN];
 
+void stop_update_logo_lamp_pwm_value(){
+	g_logo_lamp_flag = 0;
+	HAL_TIM_PWM_Stop_DMA(&htim1, TIM_CHANNEL_2);
+}
+
+void change_logo_lamp_color(){
+	make_led_pwm(g_logo_lamp_color_value, g_logo_lamp_value, BUFFER_LOGO_LED_LEN, BUFFER_LOGO_BUFFER_LEN);
+	int res = HAL_TIM_PWM_Start_DMA(&htim1,TIM_CHANNEL_2,(uint32_t*)g_logo_lamp_value, BUFFER_LOGO_BUFFER_LEN);
+	if ( res != HAL_OK){
+		return;
+	}
+}
+
+void change_logo_lamp_black(){
+	make_led_pwm(0x00, g_logo_lamp_value, BUFFER_LOGO_LED_LEN, BUFFER_LOGO_BUFFER_LEN);
+	int res = HAL_TIM_PWM_Start_DMA(&htim1,TIM_CHANNEL_2,(uint32_t*)g_logo_lamp_value, BUFFER_LOGO_BUFFER_LEN);
+	if ( res != HAL_OK){
+		return;
+	}
+}
 
 //-------------------------------
 // Energy Lamp
@@ -2858,14 +2878,12 @@ void StartWorkTask(void *argument)
 							if (value_on == 0x01){
 								uint32_t color_value = (value_red << 16) | (value_green << 8) | value_blue;
 								g_logo_lamp_color_value = color_value;
-								//led_dma_send(&htim1, TIM_CHANNEL_2, g_logo_lamp_value, BUFFER_LOGO_BUFFER_LEN, g_logo_lamp_color_value, BUFFER_LOGO_LED_LEN);
-//								stop_update_logo_lamp_pwm_value();
-//								change_logo_lamp_color_IT();
+								stop_update_logo_lamp_pwm_value();
+								change_logo_lamp_color();
 							}
 							else if (value_on == 0x02){
-								//led_dma_send(&htim1, TIM_CHANNEL_2, g_logo_lamp_value, BUFFER_LOGO_BUFFER_LEN, 0x0, BUFFER_LOGO_LED_LEN);
-//								stop_update_logo_lamp_pwm_value();
-//								change_logo_lamp_black_IT();
+								stop_update_logo_lamp_pwm_value();
+								change_logo_lamp_black();
 							}
 							else{
 								PutErrorCode(ErrorQueueHandle,0x08);

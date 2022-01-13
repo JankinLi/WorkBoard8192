@@ -66,11 +66,6 @@ extern UART_HandleTypeDef huart1;
 extern TIM_HandleTypeDef htim6;
 
 /* USER CODE BEGIN EV */
-//extern uint8_t g_energy_lamp_flag;
-//void update_energy_lamp_pwm_value_with_IT();
-//
-//extern uint8_t g_logo_lamp_flag;
-//void update_logo_lamp_pwm_value_with_IT();
 
 /* USER CODE END EV */
 
