@@ -739,6 +739,7 @@ uint8_t g_angle_report_flag = 0x00;
 uint32_t g_angle_detect_value = 0x00;
 uint8_t g_angle_adc_flag = 0x00;
 uint32_t g_angle_adc_start = 0;
+uint32_t g_angle_detect_flag = 0;
 
 // ADC
 void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc)
@@ -748,12 +749,14 @@ void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc)
 		HAL_ADC_Stop_IT(&hadc1);
 		uint32_t ADC_VALUE = HAL_ADC_GetValue(&hadc1);
 
-		uint32_t Value_1=(uint32_t)((ADC_VALUE*3.3/4096)*1000);
-		g_angle_detect_value = Value_1;
+		//uint32_t Value_1=(uint32_t)((ADC_VALUE*3.3/4096)*1000);
+		g_angle_detect_value = ADC_VALUE;
 		g_angle_report_flag = 0x01;
 
-		g_angle_adc_start = osKernelGetSysTimerCount();
-		g_angle_adc_flag = 0x01;
+		if (g_angle_detect_flag == 1){
+			g_angle_adc_start = osKernelGetSysTimerCount();
+			g_angle_adc_flag = 0x01;
+		}
 	}
 	else if (hadc->Instance == ADC2){ //TORQE //PA0
 		HAL_ADC_Stop_IT(&hadc2);
@@ -2689,6 +2692,19 @@ void StartWorkTask(void *argument)
 						g_step_flag = 0;
 						g_step_count = 0;
 						g_capture_order = 0;
+					}
+					else{
+						PutErrorCode(ErrorQueueHandle,0x03);
+					}
+				}
+				else if(data_ptr[0] == 0x04){
+					if(data_ptr[1] == 0x02 ){ //angle detect begin
+						HAL_ADC_Start_IT(&hadc1);
+						g_angle_detect_flag = 1;
+					}
+					else if (data_ptr[1] == 0x03 ){ //angle detect end
+						g_angle_detect_flag = 0;
+						HAL_ADC_Stop_IT(&hadc1);
 					}
 					else{
 						PutErrorCode(ErrorQueueHandle,0x03);
