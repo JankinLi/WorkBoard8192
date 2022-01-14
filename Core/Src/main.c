@@ -753,6 +753,8 @@ void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc)
 		g_angle_detect_value = ADC_VALUE;
 		g_angle_report_flag = 0x01;
 
+		g_angle_adc_flag = 0x00;
+
 		if (g_angle_detect_flag == 1){
 			g_angle_adc_start = osKernelGetSysTimerCount();
 			g_angle_adc_flag = 0x01;
@@ -832,7 +834,7 @@ void update_angle_adc(){
 	tick = osKernelGetSysTimerCount();
 	uint32_t diff = tick - g_angle_adc_start;
 	uint32_t freq = osKernelGetSysTimerFreq();
-	uint32_t timeout_value = 0.05 * freq;
+	uint32_t timeout_value = 0.2 * freq;
 	if (diff >= timeout_value){
 		g_angle_adc_flag = 0x00;
 		HAL_ADC_Start_IT(&hadc1);
@@ -2592,7 +2594,7 @@ void StartMainRecvTask(void *argument)
 			put_int_into_out_buffer(0x04, 0x01, g_angle_detect_value);
 		}
 
-		if(g_angle_adc_flag == 0x01){
+		if(g_angle_adc_flag == 0x01 && g_angle_detect_flag == 0x01){
 			update_angle_adc();
 		}
 
