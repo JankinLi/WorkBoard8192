@@ -180,14 +180,14 @@ const uint16_t g_strength_adc_calibration_default_value = 0x2C0;
 
 void HAL_TIM_IC_CaptureCallback(TIM_HandleTypeDef *htim){
 	if (htim->Channel == HAL_TIM_ACTIVE_CHANNEL_4){
-		if (g_capture_order == 0){
+		if (g_capture_order == 1){
 			__HAL_TIM_SET_CAPTUREPOLARITY(&htim1, TIM_CHANNEL_4,TIM_INPUTCHANNELPOLARITY_FALLING);
 			g_capture_order++;
 		}
-		else if (g_capture_order == 1){
+		else if (g_capture_order == 2){
 			__HAL_TIM_SET_CAPTUREPOLARITY(&htim1, TIM_CHANNEL_4, TIM_INPUTCHANNELPOLARITY_RISING);
 			g_step_count++;
-			g_capture_order = 0;
+			g_capture_order = 1;
 		}
 	}
 }
@@ -2571,11 +2571,10 @@ void StartMainRecvTask(void *argument)
 			uint32_t timeout_value = 1 * freq;
 			if (diff >= timeout_value){
 				g_step_start = osKernelGetSysTimerCount();
-				//g_step_value = hlptim1.Instance->CNT;
+
 				g_step_value = g_step_count;
-				//hlptim1.Instance->CNT = 0;
+
 				g_step_count = 0;
-				g_capture_order = 0;
 
 				if ((g_step_value != g_old_step_value) || (g_strength_value!=g_old_strength_value)){
 					put_two_int_and_one_byte_into_out_buffer(0x01, 0x05, g_step_value, g_strength_value, g_hall_detect_value);
@@ -2683,7 +2682,11 @@ void StartWorkTask(void *argument)
 						g_step_start = osKernelGetSysTimerCount();
 						HAL_ADC_Start_IT(&hadc2);
 						g_step_flag = 1;
-						g_capture_order = 0;
+						g_step_value = 0x0;
+						g_old_step_value = 0x0;
+						g_strength_value = 0;
+						g_old_strength_value = 0;
+						g_capture_order = 1;
 						__HAL_TIM_SET_CAPTUREPOLARITY(&htim1, TIM_CHANNEL_4, TIM_INPUTCHANNELPOLARITY_RISING);
 						HAL_TIM_IC_Start_IT(&htim1, TIM_CHANNEL_4);
 					}
