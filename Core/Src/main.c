@@ -25,6 +25,7 @@
 /* USER CODE BEGIN Includes */
 #include "tool.h"
 #include <string.h>
+#include "pwm_dma_led.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -971,30 +972,28 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) {
 
 uint8_t g_start_lamp_order = 0;
 
-#define DUTY_0 20 // 26% of 75  WS2812 = 32%
-#define DUTY_1 56 // 75% of 75  WS2812 = 62%
-#define DUTY_RESET 0
+void fill_lamp_buffer(uint8_t* p_colors, uint32_t color_value, uint8_t lamp_num, uint8_t total_lamp_num){
+	uint8_t red_value = (color_value & 0xFF0000) >> 16;
+	uint8_t green_value = (color_value & 0x00FF00) >> 8;
+	uint8_t blue_value = (color_value & 0x0000FF);
 
-#define TRST_LEN 64 // 64*1.25 = 80us
-
-#define DMA_TYPE  uint8_t
-
-void make_led_pwm(uint32_t led_color, volatile DMA_TYPE *pData, uint16_t LedLength, uint16_t BufferLength);
-void make_led_pwm_count(uint32_t led_color, volatile DMA_TYPE *pData, uint16_t LedLength, uint16_t BufferLength, uint8_t count);
-
-#define LAMP_BUFFER_MAX 4160
-
-__attribute__((aligned(4))) volatile DMA_TYPE g_lamp_buffer[LAMP_BUFFER_MAX];
+	memset(p_colors, 0, total_lamp_num * 3);
+	for(int i =0; i < lamp_num; i++){
+		p_colors[0] = red_value;
+		p_colors[1] = green_value;
+		p_colors[2] = blue_value;
+		p_colors += 3;
+	}
+}
 
 // LOGO lamp
 #define LOGO_COUNT 23
+#define LOGO_DMA_INDEX 0
 uint8_t g_logo_lamp_flag = 0;
 uint8_t g_logo_lamp_value_on = 0;
 uint32_t g_logo_lamp_color_value;
 
-#define BUFFER_LOGO_LED_LEN  LOGO_COUNT*24
-#define BUFFER_LOGO_BUFFER_LEN (TRST_LEN + BUFFER_LOGO_LED_LEN + TRST_LEN)
-
+uint8_t g_logo_lamp_buffer[LOGO_COUNT*3];
 //__attribute__((aligned(4))) volatile DMA_TYPE g_logo_lamp_value[BUFFER_LOGO_BUFFER_LEN];
 
 void stop_update_logo_lamp_pwm_value(){
@@ -1005,47 +1004,29 @@ void stop_update_logo_lamp_pwm_value(){
 }
 
 void change_logo_lamp_color(){
-	memset((void *)g_lamp_buffer, 0, LAMP_BUFFER_MAX);
-	make_led_pwm(g_logo_lamp_color_value, g_lamp_buffer, BUFFER_LOGO_LED_LEN, BUFFER_LOGO_BUFFER_LEN);
-	int res = HAL_TIM_PWM_Start_DMA(&htim1,TIM_CHANNEL_2,(uint32_t*)g_lamp_buffer, BUFFER_LOGO_BUFFER_LEN);
-	if ( res != HAL_OK){
-		return;
-	}
+	pwm_dma_init(0,&htim1,TIM_CHANNEL_2,g_logo_lamp_buffer,LOGO_COUNT);
+	fill_lamp_buffer(g_logo_lamp_buffer, g_logo_lamp_color_value, LOGO_COUNT, LOGO_COUNT);
+	pwm_dma_send(LOGO_DMA_INDEX,0);
 	g_logo_lamp_flag = 1;
 }
 
 void change_logo_lamp_black(){
-	memset((void *)g_lamp_buffer, 0, LAMP_BUFFER_MAX);
-	make_led_pwm(0x00, g_lamp_buffer, BUFFER_LOGO_LED_LEN, BUFFER_LOGO_BUFFER_LEN);
-	int res = HAL_TIM_PWM_Start_DMA(&htim1,TIM_CHANNEL_2,(uint32_t*)g_lamp_buffer, BUFFER_LOGO_BUFFER_LEN);
-	if ( res != HAL_OK){
-		return;
-	}
+	pwm_dma_init(0,&htim1,TIM_CHANNEL_2,g_logo_lamp_buffer,LOGO_COUNT);
+	fill_lamp_buffer(g_logo_lamp_buffer, 0x00, LOGO_COUNT, LOGO_COUNT);
+	pwm_dma_send(LOGO_DMA_INDEX,0);
 	g_logo_lamp_flag = 1;
 }
 
 //-------------------------------
 // Energy Lamp
 #define ENERGY_COUNT 21
+#define ENERGY_DMA_INDEX 1
 uint8_t g_energy_lamp_flag = 0;
 uint8_t g_energy_lamp_value_on = 0;
 uint8_t g_energy_lamp_effect = 0;
 uint32_t g_energy_lamp_color_value;
 
-#define BUFFER_ENERGY_LED_LEN  ENERGY_COUNT*24
-#define BUFFER_ENERGY_BUFFER_LEN (TRST_LEN + BUFFER_ENERGY_LED_LEN + TRST_LEN)
-
-//__attribute__((aligned(4))) volatile  DMA_TYPE g_energy_lamp_value[BUFFER_ENERGY_BUFFER_LEN];
-
-void change_energy_lamp_with_count_dma(uint8_t count){
-	memset((void *)g_lamp_buffer, 0, LAMP_BUFFER_MAX);
-	make_led_pwm_count(g_energy_lamp_color_value, g_lamp_buffer, BUFFER_ENERGY_LED_LEN, BUFFER_ENERGY_BUFFER_LEN, count);
-	int res = HAL_TIM_PWM_Start_DMA(&htim1,TIM_CHANNEL_3,(uint32_t*)g_lamp_buffer, BUFFER_ENERGY_BUFFER_LEN);
-	if ( res != HAL_OK){
-		return;
-	}
-	g_energy_lamp_flag = 1;
-}
+uint8_t g_energy_lamp_buffer[ENERGY_COUNT*3];
 
 void stop_update_energy_lamp_pwm_value(){
 	if (g_energy_lamp_flag == 1){
@@ -1054,23 +1035,24 @@ void stop_update_energy_lamp_pwm_value(){
 	}
 }
 
+void change_energy_lamp_with_count_dma(uint8_t count){
+	pwm_dma_init(ENERGY_DMA_INDEX,&htim1,TIM_CHANNEL_3,g_energy_lamp_buffer,ENERGY_COUNT);
+	fill_lamp_buffer(g_energy_lamp_buffer, g_energy_lamp_color_value, count, ENERGY_COUNT);
+	pwm_dma_send(ENERGY_DMA_INDEX,0);
+	g_energy_lamp_flag = 1;
+}
+
 void change_energy_lamp_color(){
-	memset((void *)g_lamp_buffer, 0, LAMP_BUFFER_MAX);
-	make_led_pwm(g_energy_lamp_color_value, g_lamp_buffer, BUFFER_ENERGY_LED_LEN, BUFFER_ENERGY_BUFFER_LEN);
-	int res = HAL_TIM_PWM_Start_DMA(&htim1,TIM_CHANNEL_3,(uint32_t*)g_lamp_buffer, BUFFER_ENERGY_BUFFER_LEN);
-	if ( res != HAL_OK){
-		return;
-	}
+	pwm_dma_init(ENERGY_DMA_INDEX,&htim1,TIM_CHANNEL_3,g_energy_lamp_buffer,ENERGY_COUNT);
+	fill_lamp_buffer(g_energy_lamp_buffer, g_energy_lamp_color_value, ENERGY_COUNT, ENERGY_COUNT);
+	pwm_dma_send(ENERGY_DMA_INDEX,0);
 	g_energy_lamp_flag = 1;
 }
 
 void change_energy_lamp_black(){
-	memset((void *)g_lamp_buffer, 0, LAMP_BUFFER_MAX);
-	make_led_pwm(0x00, g_lamp_buffer, BUFFER_ENERGY_LED_LEN, BUFFER_ENERGY_BUFFER_LEN);
-	int res = HAL_TIM_PWM_Start_DMA(&htim1,TIM_CHANNEL_3,(uint32_t*)g_lamp_buffer, BUFFER_ENERGY_BUFFER_LEN);
-	if ( res != HAL_OK){
-		return;
-	}
+	pwm_dma_init(ENERGY_DMA_INDEX,&htim1,TIM_CHANNEL_3,g_energy_lamp_buffer,ENERGY_COUNT);
+	fill_lamp_buffer(g_energy_lamp_buffer, 0x00, ENERGY_COUNT, ENERGY_COUNT);
+	pwm_dma_send(ENERGY_DMA_INDEX,0);
 	g_energy_lamp_flag = 1;
 }
 
@@ -1097,42 +1079,36 @@ void change_energy_lamp_with_circle_count(uint8_t circle_count){
 // Side Lamp
 #define SIDE_LAMP_COUNT 168
 
+#define SIDE_LAMP_1_DMA_INDEX 2
+#define SIDE_LAMP_2_DMA_INDEX 3
+
 // side lamp 1
 uint8_t g_side_1_lamp_flag = 0;
 uint8_t g_side_1_lamp_value_on = 0;
 uint8_t g_side_1_lamp_effect = 0;
 uint32_t g_side_1_lamp_color_value;
 
-#define BUFFER_SIDE_LED_LEN  SIDE_LAMP_COUNT*24
-#define BUFFER_SIDE_BUFFER_LEN (TRST_LEN + BUFFER_SIDE_LED_LEN + TRST_LEN)
+uint8_t g_side_1_lamp_buffer[SIDE_LAMP_COUNT*3];
+uint8_t g_side_2_lamp_buffer[SIDE_LAMP_COUNT*3];
 
 void change_side_1_lamp_color(uint32_t color_value){
-	memset((void *)g_lamp_buffer, 0, LAMP_BUFFER_MAX);
-	make_led_pwm(color_value, g_lamp_buffer, BUFFER_SIDE_LED_LEN, BUFFER_SIDE_BUFFER_LEN);
-	int res = HAL_TIM_PWM_Start_DMA(&htim16,TIM_CHANNEL_1,(uint32_t*)g_lamp_buffer, BUFFER_SIDE_BUFFER_LEN);
-	if ( res != HAL_OK){
-		return;
-	}
+	pwm_dma_init(SIDE_LAMP_1_DMA_INDEX,&htim16,TIM_CHANNEL_1,g_side_1_lamp_buffer,SIDE_LAMP_COUNT);
+	fill_lamp_buffer(g_side_1_lamp_buffer, g_side_1_lamp_color_value, SIDE_LAMP_COUNT, SIDE_LAMP_COUNT);
+	pwm_dma_send(SIDE_LAMP_1_DMA_INDEX,0);
 	g_side_1_lamp_flag = 1;
 }
 
 void change_side_1_lamp_black(){
-	memset((void *)g_lamp_buffer, 0, LAMP_BUFFER_MAX);
-	make_led_pwm(0x00, g_lamp_buffer, BUFFER_SIDE_LED_LEN, BUFFER_SIDE_BUFFER_LEN);
-	int res = HAL_TIM_PWM_Start_DMA(&htim16,TIM_CHANNEL_1,(uint32_t*)g_lamp_buffer, BUFFER_SIDE_BUFFER_LEN);
-	if ( res != HAL_OK){
-		return;
-	}
+	pwm_dma_init(SIDE_LAMP_1_DMA_INDEX,&htim16,TIM_CHANNEL_1,g_side_1_lamp_buffer,SIDE_LAMP_COUNT);
+	fill_lamp_buffer(g_side_1_lamp_buffer, 0x00, SIDE_LAMP_COUNT, SIDE_LAMP_COUNT);
+	pwm_dma_send(SIDE_LAMP_1_DMA_INDEX,0);
 	g_side_1_lamp_flag = 1;
 }
 
 void change_side_1_lamp_with_count_dma(uint8_t count){
-	memset((void *)g_lamp_buffer, 0, LAMP_BUFFER_MAX);
-	make_led_pwm_count(g_side_1_lamp_color_value, g_lamp_buffer, BUFFER_SIDE_LED_LEN, BUFFER_SIDE_BUFFER_LEN, count);
-	int res = HAL_TIM_PWM_Start_DMA(&htim16,TIM_CHANNEL_1,(uint32_t*)g_lamp_buffer, BUFFER_SIDE_BUFFER_LEN);
-	if ( res != HAL_OK){
-		return;
-	}
+	pwm_dma_init(SIDE_LAMP_1_DMA_INDEX,&htim16,TIM_CHANNEL_1,g_side_1_lamp_buffer,SIDE_LAMP_COUNT);
+	fill_lamp_buffer(g_side_1_lamp_buffer, g_side_1_lamp_color_value, count, SIDE_LAMP_COUNT);
+	pwm_dma_send(SIDE_LAMP_1_DMA_INDEX,0);
 	g_side_1_lamp_flag = 1;
 }
 
@@ -1143,58 +1119,52 @@ uint8_t g_side_2_lamp_effect = 0;
 uint32_t g_side_2_lamp_color_value;
 
 void change_side_2_lamp_color(){
-	memset((void *)g_lamp_buffer, 0, LAMP_BUFFER_MAX);
-	make_led_pwm(g_side_2_lamp_color_value, g_lamp_buffer, BUFFER_SIDE_LED_LEN, BUFFER_SIDE_BUFFER_LEN);
-	int res = HAL_TIM_PWM_Start_DMA(&htim17,TIM_CHANNEL_1,(uint32_t*)g_lamp_buffer, BUFFER_SIDE_BUFFER_LEN);
-	if ( res != HAL_OK){
-		return;
-	}
+	pwm_dma_init(SIDE_LAMP_2_DMA_INDEX,&htim17,TIM_CHANNEL_1,g_side_2_lamp_buffer,SIDE_LAMP_COUNT);
+	fill_lamp_buffer(g_side_2_lamp_buffer, g_side_2_lamp_color_value, SIDE_LAMP_COUNT, SIDE_LAMP_COUNT);
+	pwm_dma_send(SIDE_LAMP_2_DMA_INDEX,0);
 	g_side_2_lamp_flag = 1;
 }
 
 void change_side_2_lamp_black(){
-	memset((void *)g_lamp_buffer, 0, LAMP_BUFFER_MAX);
-	make_led_pwm(0x00, g_lamp_buffer, BUFFER_SIDE_LED_LEN, BUFFER_SIDE_BUFFER_LEN);
-	int res = HAL_TIM_PWM_Start_DMA(&htim17,TIM_CHANNEL_1,(uint32_t*)g_lamp_buffer, BUFFER_SIDE_BUFFER_LEN);
-	if ( res != HAL_OK){
-		return;
-	}
+	pwm_dma_init(SIDE_LAMP_2_DMA_INDEX,&htim17,TIM_CHANNEL_1,g_side_2_lamp_buffer,SIDE_LAMP_COUNT);
+	fill_lamp_buffer(g_side_2_lamp_buffer, 0x00, SIDE_LAMP_COUNT, SIDE_LAMP_COUNT);
+	pwm_dma_send(SIDE_LAMP_2_DMA_INDEX,0);
 	g_side_2_lamp_flag = 1;
 }
 
 // Callback
-void HAL_TIM_PWM_PulseFinishedCallback(TIM_HandleTypeDef *htim)
-{
-	if (htim->Instance == TIM1) {
-		if (htim->Channel == HAL_TIM_ACTIVE_CHANNEL_2){
-			HAL_TIM_PWM_Stop_DMA(htim, TIM_CHANNEL_2);
-			g_logo_lamp_flag = 0;
-			return;
-		}
-		if (htim->Channel == HAL_TIM_ACTIVE_CHANNEL_3){
-			HAL_TIM_PWM_Stop_DMA(htim, TIM_CHANNEL_3);
-			g_energy_lamp_flag = 0;
-			return;
-		}
-		return;
-	}
-
-	if (htim->Instance == TIM16) {
-		if (htim->Channel == HAL_TIM_ACTIVE_CHANNEL_1){
-			HAL_TIM_PWM_Stop_DMA(htim, TIM_CHANNEL_1);
-			g_side_1_lamp_flag = 0;
-		}
-		return;
-	}
-
-	if (htim->Instance == TIM17) {
-		if (htim->Channel == HAL_TIM_ACTIVE_CHANNEL_1){
-			HAL_TIM_PWM_Stop_DMA(htim, TIM_CHANNEL_1);
-			g_side_2_lamp_flag = 0;
-		}
-		return;
-	}
-}
+//void HAL_TIM_PWM_PulseFinishedCallback(TIM_HandleTypeDef *htim)
+//{
+//	if (htim->Instance == TIM1) {
+//		if (htim->Channel == HAL_TIM_ACTIVE_CHANNEL_2){
+//			HAL_TIM_PWM_Stop_DMA(htim, TIM_CHANNEL_2);
+//			g_logo_lamp_flag = 0;
+//			return;
+//		}
+//		if (htim->Channel == HAL_TIM_ACTIVE_CHANNEL_3){
+//			HAL_TIM_PWM_Stop_DMA(htim, TIM_CHANNEL_3);
+//			g_energy_lamp_flag = 0;
+//			return;
+//		}
+//		return;
+//	}
+//
+//	if (htim->Instance == TIM16) {
+//		if (htim->Channel == HAL_TIM_ACTIVE_CHANNEL_1){
+//			HAL_TIM_PWM_Stop_DMA(htim, TIM_CHANNEL_1);
+//			g_side_1_lamp_flag = 0;
+//		}
+//		return;
+//	}
+//
+//	if (htim->Instance == TIM17) {
+//		if (htim->Channel == HAL_TIM_ACTIVE_CHANNEL_1){
+//			HAL_TIM_PWM_Stop_DMA(htim, TIM_CHANNEL_1);
+//			g_side_2_lamp_flag = 0;
+//		}
+//		return;
+//	}
+//}
 
 // side 1 lamp effect
 uint8_t g_side_1_lamp_effect_flag = 0;
@@ -1342,8 +1312,9 @@ void update_side_1_lamp_pulse_effect(){
 	}
 }
 
-void start_side_1_lamp_revolving_scenic_lantern_effect(uint8_t circle_count){
+void start_side_1_lamp_revolving_scenic_lantern_effect(uint8_t effect_value, uint8_t circle_count){
 	// TODO
+	g_side_1_lamp_effect_flag = effect_value;
 }
 
 //side 2 effect
@@ -2934,7 +2905,7 @@ void StartWorkTask(void *argument)
 									//revolving scenic lantern effect
 									uint8_t circle_count = data_ptr[5];
 									stop_update_side_1_lamp_pwm_value();
-									start_side_1_lamp_revolving_scenic_lantern_effect(circle_count);
+									start_side_1_lamp_revolving_scenic_lantern_effect(0x03, circle_count);
 								}
 								else if(g_side_1_lamp_effect == 0x04){
 									stop_update_side_1_lamp_pwm_value();
