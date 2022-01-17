@@ -1425,7 +1425,7 @@ void side_lamp_callback(){
 	}
 
 	if (g_side_lamp_wait_effect == 0x03){
-		start_side_lamp_revolving_scenic_lantern_effect(g_side_lamp_wait_effect_value);
+		start_side_lamp_revolving_scenic_lantern_effect(0x03, g_side_lamp_wait_effect_value);
 		return;
 	}
 
