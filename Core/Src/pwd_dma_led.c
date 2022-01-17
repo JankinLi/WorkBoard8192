@@ -148,6 +148,9 @@ void led_data_fill(PWM_DMA_DATA_STRUCT* p_dma_data,uint8_t b_half)
 	    HAL_TIM_PWM_Stop_DMA(p_dma_data->htim,
                              p_dma_data->dma_channel);
         p_dma_data->inter_dma_data.b_completed = 1;
+        if (p_dma_data->send_finishedCallback != NULL){
+			p_dma_data->send_finishedCallback();
+		}
         return;
     }
 
@@ -163,7 +166,7 @@ void led_data_fill(PWM_DMA_DATA_STRUCT* p_dma_data,uint8_t b_half)
 * @retval 0: success
 */
 void pwm_dma_init(uint32_t dma_id, TIM_HandleTypeDef *htim, uint32_t channel,
-                 uint8_t* p_colors, uint32_t leds_count )
+                 uint8_t* p_colors, uint32_t leds_count , void *p_callback)
 {
     if (dma_id >= PWM_LED_CHANNEL_MAX_COUNT){
         return;
@@ -173,6 +176,8 @@ void pwm_dma_init(uint32_t dma_id, TIM_HandleTypeDef *htim, uint32_t channel,
     pwm_dma_data[dma_id].dma_channel = channel;
     pwm_dma_data[dma_id].p_dma_colors = p_colors;
     pwm_dma_data[dma_id].total_leds = leds_count;
+    pwm_dma_data[dma_id].send_finishedCallback = p_callback;
+
 }
 
 /**

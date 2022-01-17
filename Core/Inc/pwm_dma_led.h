@@ -42,13 +42,14 @@ typedef struct {
     uint32_t                dma_channel;
     uint8_t                 *p_dma_colors;
     uint32_t                total_leds;
+    void (*send_finishedCallback)();
     INTER_PWM_DMA_STRUCT    inter_dma_data;
 }PWM_DMA_DATA_STRUCT;
 
 #define PWM_LED_CHANNEL_MAX_COUNT  4 // The max count of DMA Channel which is used to control different LED IC.
 
 void pwm_dma_init(uint32_t dma_id, TIM_HandleTypeDef *htim, uint32_t channel,
-                 uint8_t* p_colors, uint32_t leds_count );
+                 uint8_t* p_colors, uint32_t leds_count , void *p_callback);
 int pwm_dma_send(uint32_t dma_id,uint8_t b_block);
 
 void led_data_fill(PWM_DMA_DATA_STRUCT* p_dma_data,uint8_t b_half);
