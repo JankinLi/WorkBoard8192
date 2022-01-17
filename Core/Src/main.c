@@ -1388,6 +1388,42 @@ void update_side_lamp_pulse_effect(){
 }
 
 float g_revolving_scenic_lantern_time = 1.0;
+uint8_t g_side_lamp_effect_order = 0x00;
+
+void fill_lamp_buffer_with_order(uint8_t* p_colors, uint32_t color_value, uint8_t total_lamp_num, uint8_t order ){
+	uint8_t red_value = (color_value & 0xFF0000) >> 16;
+	uint8_t green_value = (color_value & 0x00FF00) >> 8;
+	uint8_t blue_value = (color_value & 0x0000FF);
+
+	memset(p_colors, 0, total_lamp_num * 3);
+
+	int pos =0;
+	int n = 0;
+
+	while( n < 5){
+		int pos1 = ((n*28) + 1) + order;
+		int pos2 = ((n+1) *28) + order;
+
+		for(pos = pos1; pos <= pos2; pos++){
+			p_colors[(pos-1)*3 + 0] = red_value;
+			p_colors[(pos-1)*3 + 1] = green_value;
+			p_colors[(pos-1)*3 + 2] = blue_value;
+		}
+
+		n+=2;
+	}
+}
+
+void change_side_lamp_with_order(uint8_t order){
+	pwm_dma_init(SIDE_LAMP_1_DMA_INDEX,&htim16,TIM_CHANNEL_1,g_side_1_lamp_buffer,SIDE_LAMP_COUNT, NULL);
+	pwm_dma_init(SIDE_LAMP_2_DMA_INDEX,&htim17,TIM_CHANNEL_1,g_side_2_lamp_buffer,SIDE_LAMP_COUNT, side_lamp_callback);
+	fill_lamp_buffer_with_order(g_side_1_lamp_buffer, g_side_lamp_color_value, SIDE_LAMP_COUNT, order);
+	fill_lamp_buffer_with_order(g_side_2_lamp_buffer, g_side_lamp_color_value, SIDE_LAMP_COUNT, order);
+	pwm_dma_send(SIDE_LAMP_1_DMA_INDEX,LAMP_NON_BLOCK_MODE);
+	pwm_dma_send(SIDE_LAMP_2_DMA_INDEX,LAMP_NON_BLOCK_MODE);
+	g_side_lamp_flag = 1;
+}
+
 
 void start_side_lamp_revolving_scenic_lantern_effect(uint8_t effect_value, uint8_t circle_count){
 	if(g_side_lamp_flag == 1){
@@ -1397,15 +1433,40 @@ void start_side_lamp_revolving_scenic_lantern_effect(uint8_t effect_value, uint8
 	}
 
 	g_side_lamp_wait_effect = 0;
-	g_side_lamp_effect_flag = effect_value;
 	if (circle_count == 0){
 		circle_count = 1;
 	}
-	if (circle_count > 180){
-		circle_count = 180;
+	if (circle_count > 150){
+		circle_count = 150;
 	}
 	float recircle_time = 60/circle_count/2*3;
-	g_revolving_scenic_lantern_time = recircle_time;
+	g_revolving_scenic_lantern_time = recircle_time/28.0;
+
+	g_side_lamp_effect_order = 0x00;
+
+	g_side_lamp_effect_start = osKernelGetSysTimerCount();
+	g_side_lamp_effect_flag = effect_value;
+	change_side_lamp_with_order(g_side_lamp_effect_order);
+}
+
+void update_side_lamp_revolving_scenic_lantern_effect(){
+	uint32_t tick;
+	tick = osKernelGetSysTimerCount();
+	uint32_t diff = tick - g_side_lamp_effect_start;
+	uint32_t freq = osKernelGetSysTimerFreq();
+	uint32_t timeout_value = g_revolving_scenic_lantern_time * freq;
+	if (diff >= timeout_value){
+		g_side_lamp_effect_start = osKernelGetSysTimerCount();
+		if (g_side_lamp_effect_order < 28){
+			g_side_lamp_effect_order++;
+			change_side_lamp_with_order(g_side_lamp_effect_order);
+			return;
+		}
+
+		g_side_lamp_effect_order = 0x00;
+		change_side_lamp_with_order(0x00);
+		return;
+	}
 }
 
 void side_lamp_callback(){
@@ -1443,8 +1504,6 @@ void side_lamp_callback(){
 		change_side_lamp_black();
 		return;
 	}
-
-
 }
 
 /* USER CODE END 0 */
@@ -2533,6 +2592,10 @@ void StartMainRecvTask(void *argument)
 			update_side_lamp_pulse_effect();
 		}
 
+		if (g_side_lamp_effect_flag == 0x03){
+			update_side_lamp_revolving_scenic_lantern_effect();
+		}
+
 		if (g_strength_adc_flag == 1){
 			if (g_strength_adc_calibration_flag == 1){
 				update_strength_adc_calibration();
@@ -2909,8 +2972,8 @@ void StartWorkTask(void *argument)
 								}
 								else if(g_side_lamp_effect == 0x03){
 									//revolving scenic lantern effect
-									//uint8_t circle_count = data_ptr[5];
-									//start_side_lamp_revolving_scenic_lantern_effect(0x03, circle_count);
+									uint8_t circle_count = data_ptr[5];
+									start_side_lamp_revolving_scenic_lantern_effect(0x03, circle_count);
 								}
 								else if(g_side_lamp_effect == 0x04){
 									start_side_lamp_flow_effect_1(0x04);
