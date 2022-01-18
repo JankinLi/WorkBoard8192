@@ -1190,6 +1190,7 @@ void side_lamp_callback_2();
 void change_side_lamp_color(){
 	if (g_side_lamp_flag == 1 || g_side_lamp_flag_2 == 1){
 		g_side_lamp_wait_effect = 0x01;
+		g_side_lamp_effect_flag = 0;
 		return;
 	}
 
@@ -1208,6 +1209,7 @@ void change_side_lamp_color(){
 void change_side_lamp_black(){
 	if (g_side_lamp_flag == 1 || g_side_lamp_flag_2 == 1){
 		g_side_lamp_wait_effect = 0x06;
+		g_side_lamp_effect_flag = 0;
 		return;
 	}
 
@@ -1258,6 +1260,7 @@ uint32_t g_side_lamp_wait_color_flag = 0;
 void start_side_lamp_flow_effect_1(uint8_t effect_value){
 	if (g_side_lamp_flag == 1 || g_side_lamp_flag_2 == 1){
 		g_side_lamp_wait_effect = effect_value;
+		g_side_lamp_effect_flag = 0;
 		return;
 	}
 
@@ -1287,6 +1290,7 @@ void update_sied_lamp_flow_effect_1(){
 void start_side_lamp_flow_effect_2(uint8_t effect_value){
 	if (g_side_lamp_flag == 1 || g_side_lamp_flag_2 == 1){
 		g_side_lamp_wait_effect = effect_value;
+		g_side_lamp_effect_flag = 0;
 		return;
 	}
 
@@ -1334,6 +1338,7 @@ void change_side_lamp_pulse_color(uint32_t color_value){
 void start_side_lamp_pulse_effect(uint8_t effect_value){
 	if (g_side_lamp_flag == 1 || g_side_lamp_flag_2 == 1){
 		g_side_lamp_wait_effect = effect_value;
+		g_side_lamp_effect_flag = 0;
 		return;
 	}
 
@@ -1462,6 +1467,7 @@ void start_side_lamp_revolving_scenic_lantern_effect(uint8_t effect_value, uint8
 	if (g_side_lamp_flag == 1 || g_side_lamp_flag_2 == 1){
 		g_side_lamp_wait_effect = effect_value;
 		g_side_lamp_wait_effect_value = circle_count;
+		g_side_lamp_effect_flag = 0;
 		return;
 	}
 
