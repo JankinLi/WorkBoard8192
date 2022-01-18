@@ -1185,7 +1185,7 @@ uint8_t g_side_lamp_effect_flag = 0;
 
 void side_lamp_callback();
 
-void change_side_lamp_color(uint32_t color_value){
+void change_side_lamp_color(){
 	if (g_side_lamp_flag > 0){
 		g_side_lamp_wait_effect = 0x01;
 		return;
@@ -1247,6 +1247,8 @@ uint8_t g_side_lamp_flow_effect_2_current_count = 0;
 //pulse_effect
 uint8_t g_side_lamp_pulse_effect_phase = 0;
 uint8_t g_side_lamp_pulse_grey_color=0;
+uint32_t g_side_lamp_wait_color_value = 0;
+uint32_t g_side_lamp_wait_color_flag = 0;
 
 //void stop_update_side_lamp_pwm_value(){
 //	if (g_side_lamp_effect_flag > 0){
@@ -1318,6 +1320,23 @@ void update_sied_lamp_flow_effect_2(){
 	}
 }
 
+void change_side_lamp_pulse_color(uint32_t color_value){
+	if (g_side_lamp_flag > 0){
+		g_side_lamp_wait_color_value = color_value;
+		g_side_lamp_wait_color_flag = 1;
+		return;
+	}
+
+	g_side_lamp_wait_color_flag = 0;
+	pwm_dma_init(SIDE_LAMP_1_DMA_INDEX,&htim16,TIM_CHANNEL_1,g_side_1_lamp_buffer,SIDE_LAMP_COUNT, side_lamp_callback);
+	pwm_dma_init(SIDE_LAMP_2_DMA_INDEX,&htim17,TIM_CHANNEL_1,g_side_2_lamp_buffer,SIDE_LAMP_COUNT, side_lamp_callback);
+	fill_lamp_buffer(g_side_1_lamp_buffer, color_value, SIDE_LAMP_COUNT, SIDE_LAMP_COUNT);
+	fill_lamp_buffer(g_side_2_lamp_buffer, color_value, SIDE_LAMP_COUNT, SIDE_LAMP_COUNT);
+	pwm_dma_send(SIDE_LAMP_1_DMA_INDEX,LAMP_NON_BLOCK_MODE);
+	pwm_dma_send(SIDE_LAMP_2_DMA_INDEX,LAMP_NON_BLOCK_MODE);
+	g_side_lamp_flag = 2;
+}
+
 void start_side_lamp_pulse_effect(uint8_t effect_value){
 	if( g_side_lamp_flag > 0 ){
 		g_side_lamp_wait_effect = effect_value;
@@ -1329,7 +1348,7 @@ void start_side_lamp_pulse_effect(uint8_t effect_value){
 	uint8_t gray_value = 255;
 	g_side_lamp_pulse_grey_color=gray_value;
 	uint32_t color = (gray_value << 16) | (gray_value << 8) | gray_value;
-	change_side_lamp_color(color);
+	change_side_lamp_pulse_color(color);
 	g_side_lamp_pulse_effect_phase = 0;
 	g_side_lamp_effect_flag = effect_value;
 }
@@ -1346,7 +1365,7 @@ void update_side_lamp_pulse_effect(){
 			g_side_lamp_effect_start = osKernelGetSysTimerCount();
 			uint8_t gray_value = g_side_lamp_pulse_grey_color;
 			uint32_t color = (gray_value << 16) | (gray_value << 8) | gray_value;
-			change_side_lamp_color(color);
+			change_side_lamp_pulse_color(color);
 			if (g_side_lamp_pulse_grey_color == 0){
 				g_side_lamp_pulse_effect_phase = 1;
 				g_side_lamp_effect_start = osKernelGetSysTimerCount();
@@ -1377,7 +1396,7 @@ void update_side_lamp_pulse_effect(){
 			g_side_lamp_effect_start = osKernelGetSysTimerCount();
 			uint8_t gray_value = g_side_lamp_pulse_grey_color;
 			uint32_t color = (gray_value << 16) | (gray_value << 8) | gray_value;
-			change_side_lamp_color(color);
+			change_side_lamp_pulse_color(color);
 			if (g_side_lamp_pulse_grey_color == 255){
 				g_side_lamp_pulse_effect_phase = 3;
 				g_side_lamp_effect_start = osKernelGetSysTimerCount();
@@ -1497,6 +1516,11 @@ void side_lamp_callback(){
 		g_side_lamp_flag = 0;
 	}
 
+	if(g_side_lamp_wait_color_flag == 1){
+		change_side_lamp_pulse_color(g_side_lamp_wait_color_value);
+		return;
+	}
+
 	if (g_side_lamp_wait_count > 0){
 		change_side_lamp_with_count_dma(g_side_lamp_wait_count);
 		return;
@@ -1512,7 +1536,7 @@ void side_lamp_callback(){
 	}
 
 	if (g_side_lamp_wait_effect == 0x01){
-		change_side_lamp_color(g_side_lamp_color_value);
+		change_side_lamp_color();
 		return;
 	}
 
@@ -3000,7 +3024,7 @@ void StartWorkTask(void *argument)
 								uint32_t color_value = (value_red << 16) | (value_green << 8) | value_blue;
 								g_side_lamp_color_value = color_value;
 								if (g_side_lamp_effect == 0x01){
-									change_side_lamp_color(g_side_lamp_color_value);
+									change_side_lamp_color();
 								}
 								else if(g_side_lamp_effect == 0x02){
 									//pulse effect
