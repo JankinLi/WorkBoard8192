@@ -197,7 +197,7 @@ void HAL_TIM_IC_CaptureCallback(TIM_HandleTypeDef *htim){
 // idle mode
 int8_t g_idle_mode = -2; //-2 is wait down board, -1 is wait 0x01-0x01 telegram, 0 is work mode , 1 is sleep mode
 uint32_t g_wait_down_board_start =0;
-uint8_t g_down_borad_init_data_ptr[8];
+const uint8_t g_down_borad_init_data_ptr[8] = {0xf7, 0xf8, 0x04, 0x01, 0x01, 0x01, 0x07, 0xfd};
 
 uint8_t g_exit_idle_report_flag = 0x00;
 uint8_t g_shudown_report_flag = 0x00;
@@ -642,19 +642,6 @@ void put_two_int_and_one_byte_into_out_buffer(uint8_t type1_value, uint8_t type2
 	move_main_out_next_write_index();
 
 	osMutexRelease(OutMutexHandle);
-}
-
-void fill_down_board_init_telegram(){
-	memset(g_down_borad_init_data_ptr, 0x00, 8);
-	uint8_t *p = g_down_borad_init_data_ptr;
-	p[0] = 0xf7;
-	p[1] = 0xf8;
-	p[2] = 0x04;
-	p[3] = 0x01;
-	p[4] = 0x01;
-	p[5] = 0x01;
-	p[6] = 0x07;
-	p[7] = 0xfd;
 }
 
 // power button flag
@@ -1188,9 +1175,11 @@ void side_lamp_callback_1();
 void side_lamp_callback_2();
 
 void change_side_lamp_color(){
+	osMutexAcquire(OutMutexHandle, osWaitForever);
 	if (g_side_lamp_flag == 1 || g_side_lamp_flag_2 == 1){
 		g_side_lamp_wait_effect = 0x01;
 		g_side_lamp_effect_flag = 0;
+		osMutexRelease(OutMutexHandle);
 		return;
 	}
 
@@ -1204,12 +1193,15 @@ void change_side_lamp_color(){
 	g_side_lamp_flag = 1;
 	g_side_lamp_flag_2 = 1;
 	g_side_lamp_effect_flag = 0;
+	osMutexRelease(OutMutexHandle);
 }
 
 void change_side_lamp_black(){
+	osMutexAcquire(OutMutexHandle, osWaitForever);
 	if (g_side_lamp_flag == 1 || g_side_lamp_flag_2 == 1){
 		g_side_lamp_wait_effect = 0x06;
 		g_side_lamp_effect_flag = 0;
+		osMutexRelease(OutMutexHandle);
 		return;
 	}
 
@@ -1223,11 +1215,14 @@ void change_side_lamp_black(){
 	g_side_lamp_flag = 1;
 	g_side_lamp_flag_2 = 1;
 	g_side_lamp_effect_flag = 0;
+	osMutexRelease(OutMutexHandle);
 }
 
 void change_side_lamp_with_count_dma(uint8_t count){
+	osMutexAcquire(OutMutexHandle, osWaitForever);
 	if (g_side_lamp_flag == 1 || g_side_lamp_flag_2 == 1){
 		g_side_lamp_wait_count = count;
+		osMutexRelease(OutMutexHandle);
 		return;
 	}
 
@@ -1240,6 +1235,7 @@ void change_side_lamp_with_count_dma(uint8_t count){
 	pwm_dma_send(SIDE_LAMP_2_DMA_INDEX,LAMP_NON_BLOCK_MODE);
 	g_side_lamp_flag = 1;
 	g_side_lamp_flag_2 = 1;
+	osMutexRelease(OutMutexHandle);
 }
 
 // side lamp effect
@@ -1258,9 +1254,11 @@ uint32_t g_side_lamp_wait_color_value = 0;
 uint32_t g_side_lamp_wait_color_flag = 0;
 
 void start_side_lamp_flow_effect_1(uint8_t effect_value){
+	osMutexAcquire(OutMutexHandle, osWaitForever);
 	if (g_side_lamp_flag == 1 || g_side_lamp_flag_2 == 1){
 		g_side_lamp_wait_effect = effect_value;
 		g_side_lamp_effect_flag = 0;
+		osMutexRelease(OutMutexHandle);
 		return;
 	}
 
@@ -1269,6 +1267,7 @@ void start_side_lamp_flow_effect_1(uint8_t effect_value){
 	g_side_lamp_flow_effect_1_current_count = 1;
 	change_side_lamp_with_count_dma(g_side_lamp_flow_effect_1_current_count);
 	g_side_lamp_effect_flag = effect_value;
+	osMutexRelease(OutMutexHandle);
 }
 
 void update_sied_lamp_flow_effect_1(){
@@ -1288,9 +1287,11 @@ void update_sied_lamp_flow_effect_1(){
 }
 
 void start_side_lamp_flow_effect_2(uint8_t effect_value){
+	osMutexAcquire(OutMutexHandle, osWaitForever);
 	if (g_side_lamp_flag == 1 || g_side_lamp_flag_2 == 1){
 		g_side_lamp_wait_effect = effect_value;
 		g_side_lamp_effect_flag = 0;
+		osMutexRelease(OutMutexHandle);
 		return;
 	}
 
@@ -1299,6 +1300,7 @@ void start_side_lamp_flow_effect_2(uint8_t effect_value){
 	g_side_lamp_flow_effect_2_current_count = SIDE_LAMP_COUNT;
 	change_side_lamp_with_count_dma(g_side_lamp_flow_effect_2_current_count);
 	g_side_lamp_effect_flag = effect_value;
+	osMutexRelease(OutMutexHandle);
 }
 
 void update_sied_lamp_flow_effect_2(){
@@ -1318,9 +1320,11 @@ void update_sied_lamp_flow_effect_2(){
 }
 
 void change_side_lamp_pulse_color(uint32_t color_value){
+	osMutexAcquire(OutMutexHandle, osWaitForever);
 	if (g_side_lamp_flag == 1 || g_side_lamp_flag_2 == 1){
 		g_side_lamp_wait_color_value = color_value;
 		g_side_lamp_wait_color_flag = 1;
+		osMutexRelease(OutMutexHandle);
 		return;
 	}
 
@@ -1333,12 +1337,15 @@ void change_side_lamp_pulse_color(uint32_t color_value){
 	pwm_dma_send(SIDE_LAMP_2_DMA_INDEX,LAMP_NON_BLOCK_MODE);
 	g_side_lamp_flag = 1;
 	g_side_lamp_flag_2 = 1;
+	osMutexRelease(OutMutexHandle);
 }
 
 void start_side_lamp_pulse_effect(uint8_t effect_value){
+	osMutexAcquire(OutMutexHandle, osWaitForever);
 	if (g_side_lamp_flag == 1 || g_side_lamp_flag_2 == 1){
 		g_side_lamp_wait_effect = effect_value;
 		g_side_lamp_effect_flag = 0;
+		osMutexRelease(OutMutexHandle);
 		return;
 	}
 
@@ -1350,6 +1357,7 @@ void start_side_lamp_pulse_effect(uint8_t effect_value){
 	change_side_lamp_pulse_color(color);
 	g_side_lamp_pulse_effect_phase = 0;
 	g_side_lamp_effect_flag = effect_value;
+	osMutexRelease(OutMutexHandle);
 }
 
 void update_side_lamp_pulse_effect(){
@@ -1446,8 +1454,10 @@ void fill_lamp_buffer_with_order(uint8_t* p_colors, uint32_t color_value, uint8_
 }
 
 void change_side_lamp_with_order(uint8_t order){
+	osMutexAcquire(OutMutexHandle, osWaitForever);
 	if (g_side_lamp_flag == 1 || g_side_lamp_flag_2 == 1){
 		g_side_lamp_wait_order = order;
+		osMutexRelease(OutMutexHandle);
 		return;
 	}
 
@@ -1460,14 +1470,17 @@ void change_side_lamp_with_order(uint8_t order){
 	pwm_dma_send(SIDE_LAMP_2_DMA_INDEX,LAMP_NON_BLOCK_MODE);
 	g_side_lamp_flag = 1;
 	g_side_lamp_flag_2 = 1;
+	osMutexRelease(OutMutexHandle);
 }
 
 
 void start_side_lamp_revolving_scenic_lantern_effect(uint8_t effect_value, uint8_t circle_count){
+	osMutexAcquire(OutMutexHandle, osWaitForever);
 	if (g_side_lamp_flag == 1 || g_side_lamp_flag_2 == 1){
 		g_side_lamp_wait_effect = effect_value;
 		g_side_lamp_wait_effect_value = circle_count;
 		g_side_lamp_effect_flag = 0;
+		osMutexRelease(OutMutexHandle);
 		return;
 	}
 
@@ -1486,6 +1499,7 @@ void start_side_lamp_revolving_scenic_lantern_effect(uint8_t effect_value, uint8
 	g_side_lamp_effect_start = osKernelGetSysTimerCount();
 	g_side_lamp_effect_flag = effect_value;
 	change_side_lamp_with_order(g_side_lamp_effect_order);
+	osMutexRelease(OutMutexHandle);
 }
 
 void update_side_lamp_revolving_scenic_lantern_effect(){
@@ -2650,10 +2664,6 @@ void StartMainRecvTask(void *argument)
 	g_energy_lamp_color_value = default_color;
 	g_side_lamp_color_value = default_color;
 
-	//start_side_1_lamp_flow_effect_1();
-
-
-	fill_down_board_init_telegram();
 	g_wait_down_board_start = osKernelGetSysTimerCount();
 	HAL_UART_Transmit(&huart4,(uint8_t*)g_down_borad_init_data_ptr,0x08,0xffff);
 
