@@ -362,7 +362,7 @@ void HAL_TIM_Base_MspInit(TIM_HandleTypeDef* htim_base)
 
     /* TIM16 DMA Init */
     /* TIM16_CH1 Init */
-    hdma_tim16_ch1.Instance = DMA1_Channel4;
+    hdma_tim16_ch1.Instance = DMA1_Channel3;
     hdma_tim16_ch1.Init.Request = DMA_REQUEST_TIM16_CH1;
     hdma_tim16_ch1.Init.Direction = DMA_MEMORY_TO_PERIPH;
     hdma_tim16_ch1.Init.PeriphInc = DMA_PINC_DISABLE;
@@ -392,7 +392,7 @@ void HAL_TIM_Base_MspInit(TIM_HandleTypeDef* htim_base)
 
     /* TIM17 DMA Init */
     /* TIM17_CH1 Init */
-    hdma_tim17_ch1.Instance = DMA1_Channel3;
+    hdma_tim17_ch1.Instance = DMA1_Channel4;
     hdma_tim17_ch1.Init.Request = DMA_REQUEST_TIM17_CH1;
     hdma_tim17_ch1.Init.Direction = DMA_MEMORY_TO_PERIPH;
     hdma_tim17_ch1.Init.PeriphInc = DMA_PINC_DISABLE;
