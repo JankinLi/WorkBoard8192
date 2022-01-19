@@ -1174,6 +1174,11 @@ uint8_t g_side_lamp_effect_flag = 0;
 void side_lamp_callback_1();
 void side_lamp_callback_2();
 
+//void side_lamp_init(){
+//	pwm_dma_init(SIDE_LAMP_1_DMA_INDEX,&htim16,TIM_CHANNEL_1,g_side_1_lamp_buffer,SIDE_LAMP_COUNT, side_lamp_callback_1);
+//	pwm_dma_init(SIDE_LAMP_2_DMA_INDEX,&htim17,TIM_CHANNEL_1,g_side_2_lamp_buffer,SIDE_LAMP_COUNT, side_lamp_callback_2);
+//}
+
 void change_side_lamp_color(){
 	osMutexAcquire(OutMutexHandle, osWaitForever);
 	if (g_side_lamp_flag == 1 || g_side_lamp_flag_2 == 1){
@@ -1265,9 +1270,10 @@ void start_side_lamp_flow_effect_1(uint8_t effect_value){
 	g_side_lamp_wait_effect = 0x00;
 	g_side_lamp_effect_start = osKernelGetSysTimerCount();
 	g_side_lamp_flow_effect_1_current_count = 1;
-	change_side_lamp_with_count_dma(g_side_lamp_flow_effect_1_current_count);
 	g_side_lamp_effect_flag = effect_value;
 	osMutexRelease(OutMutexHandle);
+
+	change_side_lamp_with_count_dma(g_side_lamp_flow_effect_1_current_count);
 }
 
 void update_sied_lamp_flow_effect_1(){
@@ -1298,9 +1304,10 @@ void start_side_lamp_flow_effect_2(uint8_t effect_value){
 	g_side_lamp_wait_effect = 0x00;
 	g_side_lamp_effect_start = osKernelGetSysTimerCount();
 	g_side_lamp_flow_effect_2_current_count = SIDE_LAMP_COUNT;
-	change_side_lamp_with_count_dma(g_side_lamp_flow_effect_2_current_count);
 	g_side_lamp_effect_flag = effect_value;
 	osMutexRelease(OutMutexHandle);
+
+	change_side_lamp_with_count_dma(g_side_lamp_flow_effect_2_current_count);
 }
 
 void update_sied_lamp_flow_effect_2(){
@@ -1354,10 +1361,11 @@ void start_side_lamp_pulse_effect(uint8_t effect_value){
 	uint8_t gray_value = 255;
 	g_side_lamp_pulse_grey_color=gray_value;
 	uint32_t color = (gray_value << 16) | (gray_value << 8) | gray_value;
-	change_side_lamp_pulse_color(color);
 	g_side_lamp_pulse_effect_phase = 0;
 	g_side_lamp_effect_flag = effect_value;
 	osMutexRelease(OutMutexHandle);
+
+	change_side_lamp_pulse_color(color);
 }
 
 void update_side_lamp_pulse_effect(){
@@ -1366,7 +1374,7 @@ void update_side_lamp_pulse_effect(){
 		tick = osKernelGetSysTimerCount();
 		uint32_t diff = tick - g_side_lamp_effect_start;
 		uint32_t freq = osKernelGetSysTimerFreq();
-		uint32_t timeout_value = 0.015 * freq;
+		uint32_t timeout_value = 0.15 * freq;
 		if (diff >= timeout_value){
 			g_side_lamp_pulse_grey_color--;
 			g_side_lamp_effect_start = osKernelGetSysTimerCount();
@@ -1378,6 +1386,7 @@ void update_side_lamp_pulse_effect(){
 				g_side_lamp_effect_start = osKernelGetSysTimerCount();
 				return;
 			}
+			return;
 		}
 	}
 	else if(g_side_lamp_pulse_effect_phase == 1){
@@ -1397,7 +1406,7 @@ void update_side_lamp_pulse_effect(){
 		tick = osKernelGetSysTimerCount();
 		uint32_t diff = tick - g_side_lamp_effect_start;
 		uint32_t freq = osKernelGetSysTimerFreq();
-		uint32_t timeout_value = 0.015 * freq;
+		uint32_t timeout_value = 0.15 * freq;
 		if (diff >= timeout_value){
 			g_side_lamp_pulse_grey_color++;
 			g_side_lamp_effect_start = osKernelGetSysTimerCount();
@@ -1409,6 +1418,7 @@ void update_side_lamp_pulse_effect(){
 				g_side_lamp_effect_start = osKernelGetSysTimerCount();
 				return;
 			}
+			return;
 		}
 	}
 	else if(g_side_lamp_pulse_effect_phase == 3){
@@ -1498,8 +1508,9 @@ void start_side_lamp_revolving_scenic_lantern_effect(uint8_t effect_value, uint8
 
 	g_side_lamp_effect_start = osKernelGetSysTimerCount();
 	g_side_lamp_effect_flag = effect_value;
-	change_side_lamp_with_order(g_side_lamp_effect_order);
 	osMutexRelease(OutMutexHandle);
+
+	change_side_lamp_with_order(g_side_lamp_effect_order);
 }
 
 void update_side_lamp_revolving_scenic_lantern_effect(){
@@ -1522,82 +1533,75 @@ void update_side_lamp_revolving_scenic_lantern_effect(){
 	}
 }
 
-void side_lamp_call_restore();
-
 void side_lamp_callback_1(){
-	if (g_side_lamp_flag == 1){
-		g_side_lamp_flag = 0;
-	}
-
-	if (g_side_lamp_flag_2 == 1 ){
-		return;
-	}
-
-	side_lamp_call_restore();
+	g_side_lamp_flag = 0;
 }
 
 void side_lamp_callback_2(){
-	if (g_side_lamp_flag_2 == 1){
-		g_side_lamp_flag_2 = 0;
-	}
-
-	if (g_side_lamp_flag == 1 ){
-		return;
-	}
-
-	side_lamp_call_restore();
+	g_side_lamp_flag_2 = 0;
 }
 
 void side_lamp_call_restore(){
-
-	if(g_side_lamp_wait_color_flag == 1){
-		change_side_lamp_pulse_color(g_side_lamp_wait_color_value);
-		return;
-	}
-
-	if (g_side_lamp_wait_count > 0){
-		change_side_lamp_with_count_dma(g_side_lamp_wait_count);
-		return;
-	}
-
-	if (g_side_lamp_wait_order > 0){
-		change_side_lamp_with_order(g_side_lamp_wait_order);
-		return;
-	}
-
-	if (g_side_lamp_wait_effect == 0x00){
+	osMutexAcquire(OutMutexHandle, osWaitForever);
+	if (g_side_lamp_flag == 1 || g_side_lamp_flag_2 == 1){
+		osMutexRelease(OutMutexHandle);
 		return;
 	}
 
 	if (g_side_lamp_wait_effect == 0x01){
+		osMutexRelease(OutMutexHandle);
 		change_side_lamp_color();
 		return;
 	}
 
 	if (g_side_lamp_wait_effect == 0x02){
+		osMutexRelease(OutMutexHandle);
 		start_side_lamp_pulse_effect(0x02);
 		return;
 	}
 
 	if (g_side_lamp_wait_effect == 0x03){
+		osMutexRelease(OutMutexHandle);
 		start_side_lamp_revolving_scenic_lantern_effect(0x03, g_side_lamp_wait_effect_value);
 		return;
 	}
 
 	if (g_side_lamp_wait_effect == 0x04){
+		osMutexRelease(OutMutexHandle);
 		start_side_lamp_flow_effect_1(0x04);
 		return;
 	}
 
 	if (g_side_lamp_wait_effect == 0x05){
+		osMutexRelease(OutMutexHandle);
 		start_side_lamp_flow_effect_2(0x05);
 		return;
 	}
 
 	if (g_side_lamp_wait_effect == 0x06){
+		osMutexRelease(OutMutexHandle);
 		change_side_lamp_black();
 		return;
 	}
+
+	if(g_side_lamp_wait_color_flag == 1){
+		osMutexRelease(OutMutexHandle);
+		change_side_lamp_pulse_color(g_side_lamp_wait_color_value);
+		return;
+	}
+
+	if (g_side_lamp_wait_count > 0){
+		osMutexRelease(OutMutexHandle);
+		change_side_lamp_with_count_dma(g_side_lamp_wait_count);
+		return;
+	}
+
+	if (g_side_lamp_wait_order > 0){
+		osMutexRelease(OutMutexHandle);
+		change_side_lamp_with_order(g_side_lamp_wait_order);
+		return;
+	}
+	osMutexRelease(OutMutexHandle);
 }
 
 /* USER CODE END 0 */
@@ -2670,6 +2674,8 @@ void StartMainRecvTask(void *argument)
 	/* Infinite loop */
 	for(;;)
 	{
+		side_lamp_call_restore();
+
 		if (g_side_lamp_effect_flag == 0x04){
 			update_sied_lamp_flow_effect_1();
 		}
