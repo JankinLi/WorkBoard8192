@@ -1226,7 +1226,7 @@ void change_side_lamp_black(){
 void change_side_lamp_with_count_dma(uint8_t count){
 	osMutexAcquire(OutMutexHandle, osWaitForever);
 	if (g_side_lamp_flag == 1 || g_side_lamp_flag_2 == 1){
-		g_side_lamp_wait_count = count;
+		//g_side_lamp_wait_count = count;
 		osMutexRelease(OutMutexHandle);
 		return;
 	}
@@ -1329,8 +1329,8 @@ void update_sied_lamp_flow_effect_2(){
 void change_side_lamp_pulse_color(uint32_t color_value){
 	osMutexAcquire(OutMutexHandle, osWaitForever);
 	if (g_side_lamp_flag == 1 || g_side_lamp_flag_2 == 1){
-		g_side_lamp_wait_color_value = color_value;
-		g_side_lamp_wait_color_flag = 1;
+		//g_side_lamp_wait_color_value = color_value;
+		//g_side_lamp_wait_color_flag = 1;
 		osMutexRelease(OutMutexHandle);
 		return;
 	}
@@ -1374,7 +1374,7 @@ void update_side_lamp_pulse_effect(){
 		tick = osKernelGetSysTimerCount();
 		uint32_t diff = tick - g_side_lamp_effect_start;
 		uint32_t freq = osKernelGetSysTimerFreq();
-		uint32_t timeout_value = 0.15 * freq;
+		uint32_t timeout_value = 0.03 * freq;
 		if (diff >= timeout_value){
 			g_side_lamp_pulse_grey_color--;
 			g_side_lamp_effect_start = osKernelGetSysTimerCount();
@@ -1406,7 +1406,7 @@ void update_side_lamp_pulse_effect(){
 		tick = osKernelGetSysTimerCount();
 		uint32_t diff = tick - g_side_lamp_effect_start;
 		uint32_t freq = osKernelGetSysTimerFreq();
-		uint32_t timeout_value = 0.15 * freq;
+		uint32_t timeout_value = 0.03 * freq;
 		if (diff >= timeout_value){
 			g_side_lamp_pulse_grey_color++;
 			g_side_lamp_effect_start = osKernelGetSysTimerCount();
@@ -1466,7 +1466,7 @@ void fill_lamp_buffer_with_order(uint8_t* p_colors, uint32_t color_value, uint8_
 void change_side_lamp_with_order(uint8_t order){
 	osMutexAcquire(OutMutexHandle, osWaitForever);
 	if (g_side_lamp_flag == 1 || g_side_lamp_flag_2 == 1){
-		g_side_lamp_wait_order = order;
+		//g_side_lamp_wait_order = order;
 		osMutexRelease(OutMutexHandle);
 		return;
 	}
@@ -1541,7 +1541,7 @@ void side_lamp_callback_2(){
 	g_side_lamp_flag_2 = 0;
 }
 
-void side_lamp_call_restore(){
+void side_lamp_update_effect(){
 	osMutexAcquire(OutMutexHandle, osWaitForever);
 	if (g_side_lamp_flag == 1 || g_side_lamp_flag_2 == 1){
 		osMutexRelease(OutMutexHandle);
@@ -1553,54 +1553,70 @@ void side_lamp_call_restore(){
 		change_side_lamp_color();
 		return;
 	}
-
-	if (g_side_lamp_wait_effect == 0x02){
+	else if (g_side_lamp_wait_effect == 0x02){
 		osMutexRelease(OutMutexHandle);
 		start_side_lamp_pulse_effect(0x02);
 		return;
 	}
-
-	if (g_side_lamp_wait_effect == 0x03){
+	else if (g_side_lamp_wait_effect == 0x03){
 		osMutexRelease(OutMutexHandle);
 		start_side_lamp_revolving_scenic_lantern_effect(0x03, g_side_lamp_wait_effect_value);
 		return;
 	}
-
-	if (g_side_lamp_wait_effect == 0x04){
+	else if (g_side_lamp_wait_effect == 0x04){
 		osMutexRelease(OutMutexHandle);
 		start_side_lamp_flow_effect_1(0x04);
 		return;
 	}
-
-	if (g_side_lamp_wait_effect == 0x05){
+	else if (g_side_lamp_wait_effect == 0x05){
 		osMutexRelease(OutMutexHandle);
 		start_side_lamp_flow_effect_2(0x05);
 		return;
 	}
-
-	if (g_side_lamp_wait_effect == 0x06){
+	else if (g_side_lamp_wait_effect == 0x06){
 		osMutexRelease(OutMutexHandle);
 		change_side_lamp_black();
 		return;
 	}
 
-	if(g_side_lamp_wait_color_flag == 1){
+	if (g_side_lamp_effect_flag == 0x04){
 		osMutexRelease(OutMutexHandle);
-		change_side_lamp_pulse_color(g_side_lamp_wait_color_value);
+		update_sied_lamp_flow_effect_1();
+		return;
+	}
+	else if (g_side_lamp_effect_flag == 0x05){
+		osMutexRelease(OutMutexHandle);
+		update_sied_lamp_flow_effect_2();
+		return;
+	}
+	else if (g_side_lamp_effect_flag == 0x02){
+		osMutexRelease(OutMutexHandle);
+		update_side_lamp_pulse_effect();
+		return;
+	}
+	else if (g_side_lamp_effect_flag == 0x03){
+		osMutexRelease(OutMutexHandle);
+		update_side_lamp_revolving_scenic_lantern_effect();
 		return;
 	}
 
-	if (g_side_lamp_wait_count > 0){
-		osMutexRelease(OutMutexHandle);
-		change_side_lamp_with_count_dma(g_side_lamp_wait_count);
-		return;
-	}
+//	if(g_side_lamp_wait_color_flag == 1){
+//		osMutexRelease(OutMutexHandle);
+//		change_side_lamp_pulse_color(g_side_lamp_wait_color_value);
+//		return;
+//	}
 
-	if (g_side_lamp_wait_order > 0){
-		osMutexRelease(OutMutexHandle);
-		change_side_lamp_with_order(g_side_lamp_wait_order);
-		return;
-	}
+//	if (g_side_lamp_wait_count > 0){
+//		osMutexRelease(OutMutexHandle);
+//		change_side_lamp_with_count_dma(g_side_lamp_wait_count);
+//		return;
+//	}
+//
+//	if (g_side_lamp_wait_order > 0){
+//		osMutexRelease(OutMutexHandle);
+//		change_side_lamp_with_order(g_side_lamp_wait_order);
+//		return;
+//	}
 	osMutexRelease(OutMutexHandle);
 }
 
@@ -2674,23 +2690,7 @@ void StartMainRecvTask(void *argument)
 	/* Infinite loop */
 	for(;;)
 	{
-		side_lamp_call_restore();
-
-		if (g_side_lamp_effect_flag == 0x04){
-			update_sied_lamp_flow_effect_1();
-		}
-
-		if (g_side_lamp_effect_flag == 0x05){
-			update_sied_lamp_flow_effect_2();
-		}
-
-		if (g_side_lamp_effect_flag == 0x02){
-			update_side_lamp_pulse_effect();
-		}
-
-		if (g_side_lamp_effect_flag == 0x03){
-			update_side_lamp_revolving_scenic_lantern_effect();
-		}
+		side_lamp_update_effect();
 
 		if (g_strength_adc_flag == 1){
 			if (g_strength_adc_calibration_flag == 1){
