@@ -1478,12 +1478,13 @@ void fill_lamp_buffer_with_order(uint8_t* p_colors, uint32_t color_value, uint8_
 		pos2 = ((n+1) *28) + order;
 
 		for(pos = pos1; pos <= pos2; pos++){
-			if (pos > 167){
-				pos = pos - 167;
+			int index = pos;
+			if (index > 168){
+				index = index - 168;
 			}
-			p_colors[(pos-1)*3 + 0] = red_value;
-			p_colors[(pos-1)*3 + 1] = green_value;
-			p_colors[(pos-1)*3 + 2] = blue_value;
+			p_colors[(index-1)*3 + 0] = red_value;
+			p_colors[(index-1)*3 + 1] = green_value;
+			p_colors[(index-1)*3 + 2] = blue_value;
 		}
 
 		n+=2;
@@ -1535,7 +1536,7 @@ void start_side_lamp_revolving_scenic_lantern_effect(uint8_t effect_value, uint8
 	if (circle_count > 150){
 		circle_count = 150;
 	}
-	float recircle_time = 60/circle_count/2*3;
+	float recircle_time = (float)90/(float)circle_count;
 	g_revolving_scenic_lantern_time = recircle_time/28.0;
 
 	g_side_lamp_effect_order = 0x00;
@@ -1555,7 +1556,7 @@ void update_side_lamp_revolving_scenic_lantern_effect(){
 	uint32_t timeout_value = g_revolving_scenic_lantern_time * freq;
 	if (diff >= timeout_value){
 		g_side_lamp_effect_start = osKernelGetSysTimerCount();
-		if (g_side_lamp_effect_order < 28){
+		if (g_side_lamp_effect_order < 56){
 			g_side_lamp_effect_order+=2;
 			change_side_lamp_with_order(g_side_lamp_effect_order);
 			return;
