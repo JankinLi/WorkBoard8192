@@ -50,11 +50,9 @@ TIM_HandleTypeDef htim1;
 TIM_HandleTypeDef htim2;
 TIM_HandleTypeDef htim3;
 TIM_HandleTypeDef htim8;
-TIM_HandleTypeDef htim16;
 TIM_HandleTypeDef htim17;
 DMA_HandleTypeDef hdma_tim1_ch2;
 DMA_HandleTypeDef hdma_tim1_ch3;
-DMA_HandleTypeDef hdma_tim16_ch1;
 DMA_HandleTypeDef hdma_tim17_ch1;
 
 UART_HandleTypeDef huart4;
@@ -140,7 +138,6 @@ static void MX_TIM1_Init(void);
 static void MX_TIM2_Init(void);
 static void MX_TIM3_Init(void);
 static void MX_TIM8_Init(void);
-static void MX_TIM16_Init(void);
 static void MX_TIM17_Init(void);
 static void MX_USB_PCD_Init(void);
 void StartMainRecvTask(void *argument);
@@ -1152,7 +1149,7 @@ void energy_lamp_callback(){
 #define SIDE_LAMP_2_DMA_INDEX 3
 
 // side lamp 1
-uint8_t g_side_lamp_flag = 0;
+//uint8_t g_side_lamp_flag = 0;
 uint8_t g_side_lamp_flag_2 = 0;
 uint8_t g_side_lamp_value_on = 0;
 uint8_t g_side_lamp_effect = 0;
@@ -1160,7 +1157,7 @@ uint32_t g_side_lamp_color_value;
 
 #define SIDE_LAMP_BUFFER_LEN (SIDE_LAMP_COUNT*3)
 
-uint8_t g_side_1_lamp_buffer[SIDE_LAMP_BUFFER_LEN];
+//uint8_t g_side_1_lamp_buffer[SIDE_LAMP_BUFFER_LEN];
 uint8_t g_side_2_lamp_buffer[SIDE_LAMP_BUFFER_LEN];
 
 uint8_t g_side_lamp_wait_count = 0x00;
@@ -1181,7 +1178,8 @@ void side_lamp_callback_2();
 
 void change_side_lamp_color(){
 	osMutexAcquire(OutMutexHandle, osWaitForever);
-	if (g_side_lamp_flag == 1 || g_side_lamp_flag_2 == 1){
+	//if (g_side_lamp_flag == 1 || g_side_lamp_flag_2 == 1){
+	if ( g_side_lamp_flag_2 == 1){
 		g_side_lamp_wait_effect = 0x01;
 		g_side_lamp_effect_flag = 0;
 		osMutexRelease(OutMutexHandle);
@@ -1189,13 +1187,18 @@ void change_side_lamp_color(){
 	}
 
 	g_side_lamp_wait_effect = 0x00;
-	pwm_dma_init(SIDE_LAMP_1_DMA_INDEX,&htim16,TIM_CHANNEL_1,g_side_1_lamp_buffer,SIDE_LAMP_COUNT, side_lamp_callback_1);
+	//pwm_dma_init(SIDE_LAMP_1_DMA_INDEX,&htim16,TIM_CHANNEL_1,g_side_1_lamp_buffer,SIDE_LAMP_COUNT, side_lamp_callback_1);
 	pwm_dma_init(SIDE_LAMP_2_DMA_INDEX,&htim17,TIM_CHANNEL_1,g_side_2_lamp_buffer,SIDE_LAMP_COUNT, side_lamp_callback_2);
-	fill_lamp_buffer(g_side_1_lamp_buffer, g_side_lamp_color_value, SIDE_LAMP_COUNT, SIDE_LAMP_COUNT);
+	//fill_lamp_buffer(g_side_1_lamp_buffer, g_side_lamp_color_value, SIDE_LAMP_COUNT, SIDE_LAMP_COUNT);
 	fill_lamp_buffer(g_side_2_lamp_buffer, g_side_lamp_color_value, SIDE_LAMP_COUNT, SIDE_LAMP_COUNT);
-	pwm_dma_send(SIDE_LAMP_1_DMA_INDEX,LAMP_NON_BLOCK_MODE);
-	pwm_dma_send(SIDE_LAMP_2_DMA_INDEX,LAMP_NON_BLOCK_MODE);
-	g_side_lamp_flag = 1;
+	//pwm_dma_send(SIDE_LAMP_1_DMA_INDEX,LAMP_NON_BLOCK_MODE);
+	int ret = pwm_dma_send(SIDE_LAMP_2_DMA_INDEX,LAMP_NON_BLOCK_MODE);
+	if (ret!=HAL_OK){
+		osMutexRelease(OutMutexHandle);
+		PutErrorCode(ErrorQueueHandle, 0xEF);
+		return;
+	}
+	//g_side_lamp_flag = 1;
 	g_side_lamp_flag_2 = 1;
 	g_side_lamp_effect_flag = 0;
 	osMutexRelease(OutMutexHandle);
@@ -1203,7 +1206,8 @@ void change_side_lamp_color(){
 
 void change_side_lamp_black(){
 	osMutexAcquire(OutMutexHandle, osWaitForever);
-	if (g_side_lamp_flag == 1 || g_side_lamp_flag_2 == 1){
+	//if (g_side_lamp_flag == 1 || g_side_lamp_flag_2 == 1){
+	if (g_side_lamp_flag_2 == 1){
 		g_side_lamp_wait_effect = 0x06;
 		g_side_lamp_effect_flag = 0;
 		osMutexRelease(OutMutexHandle);
@@ -1211,13 +1215,18 @@ void change_side_lamp_black(){
 	}
 
 	g_side_lamp_wait_effect = 0x00;
-	pwm_dma_init(SIDE_LAMP_1_DMA_INDEX,&htim16,TIM_CHANNEL_1,g_side_1_lamp_buffer,SIDE_LAMP_COUNT, side_lamp_callback_1);
+	//pwm_dma_init(SIDE_LAMP_1_DMA_INDEX,&htim16,TIM_CHANNEL_1,g_side_1_lamp_buffer,SIDE_LAMP_COUNT, side_lamp_callback_1);
 	pwm_dma_init(SIDE_LAMP_2_DMA_INDEX,&htim17,TIM_CHANNEL_1,g_side_2_lamp_buffer,SIDE_LAMP_COUNT, side_lamp_callback_2);
-	fill_lamp_buffer(g_side_1_lamp_buffer, 0x00, SIDE_LAMP_COUNT, SIDE_LAMP_COUNT);
+	//fill_lamp_buffer(g_side_1_lamp_buffer, 0x00, SIDE_LAMP_COUNT, SIDE_LAMP_COUNT);
 	fill_lamp_buffer(g_side_2_lamp_buffer, 0x00, SIDE_LAMP_COUNT, SIDE_LAMP_COUNT);
-	pwm_dma_send(SIDE_LAMP_1_DMA_INDEX,LAMP_NON_BLOCK_MODE);
-	pwm_dma_send(SIDE_LAMP_2_DMA_INDEX,LAMP_NON_BLOCK_MODE);
-	g_side_lamp_flag = 1;
+	//pwm_dma_send(SIDE_LAMP_1_DMA_INDEX,LAMP_NON_BLOCK_MODE);
+	int ret = pwm_dma_send(SIDE_LAMP_2_DMA_INDEX,LAMP_NON_BLOCK_MODE);
+	if (ret!=HAL_OK){
+		osMutexRelease(OutMutexHandle);
+		PutErrorCode(ErrorQueueHandle, 0xEF);
+		return;
+	}
+	//g_side_lamp_flag = 1;
 	g_side_lamp_flag_2 = 1;
 	g_side_lamp_effect_flag = 0;
 	osMutexRelease(OutMutexHandle);
@@ -1225,20 +1234,26 @@ void change_side_lamp_black(){
 
 void change_side_lamp_with_count_dma(uint8_t count){
 	osMutexAcquire(OutMutexHandle, osWaitForever);
-	if (g_side_lamp_flag == 1 || g_side_lamp_flag_2 == 1){
+	if (g_side_lamp_flag_2 == 1){
+	//if (g_side_lamp_flag == 1 || g_side_lamp_flag_2 == 1){
 		//g_side_lamp_wait_count = count;
 		osMutexRelease(OutMutexHandle);
 		return;
 	}
 
 	g_side_lamp_wait_count = 0;
-	pwm_dma_init(SIDE_LAMP_1_DMA_INDEX,&htim16,TIM_CHANNEL_1,g_side_1_lamp_buffer,SIDE_LAMP_COUNT, side_lamp_callback_1);
+	//pwm_dma_init(SIDE_LAMP_1_DMA_INDEX,&htim16,TIM_CHANNEL_1,g_side_1_lamp_buffer,SIDE_LAMP_COUNT, side_lamp_callback_1);
 	pwm_dma_init(SIDE_LAMP_2_DMA_INDEX,&htim17,TIM_CHANNEL_1,g_side_2_lamp_buffer,SIDE_LAMP_COUNT, side_lamp_callback_2);
-	fill_lamp_buffer(g_side_1_lamp_buffer, g_side_lamp_color_value, count, SIDE_LAMP_COUNT);
+	//fill_lamp_buffer(g_side_1_lamp_buffer, g_side_lamp_color_value, count, SIDE_LAMP_COUNT);
 	fill_lamp_buffer(g_side_2_lamp_buffer, g_side_lamp_color_value, count, SIDE_LAMP_COUNT);
-	pwm_dma_send(SIDE_LAMP_1_DMA_INDEX,LAMP_NON_BLOCK_MODE);
-	pwm_dma_send(SIDE_LAMP_2_DMA_INDEX,LAMP_NON_BLOCK_MODE);
-	g_side_lamp_flag = 1;
+	//pwm_dma_send(SIDE_LAMP_1_DMA_INDEX,LAMP_NON_BLOCK_MODE);
+	int ret = pwm_dma_send(SIDE_LAMP_2_DMA_INDEX,LAMP_NON_BLOCK_MODE);
+	if (ret!=HAL_OK){
+		osMutexRelease(OutMutexHandle);
+		PutErrorCode(ErrorQueueHandle, 0xEF);
+		return;
+	}
+	//g_side_lamp_flag = 1;
 	g_side_lamp_flag_2 = 1;
 	osMutexRelease(OutMutexHandle);
 }
@@ -1260,7 +1275,8 @@ uint32_t g_side_lamp_wait_color_flag = 0;
 
 void start_side_lamp_flow_effect_1(uint8_t effect_value){
 	osMutexAcquire(OutMutexHandle, osWaitForever);
-	if (g_side_lamp_flag == 1 || g_side_lamp_flag_2 == 1){
+	//if (g_side_lamp_flag == 1 || g_side_lamp_flag_2 == 1){
+	if ( g_side_lamp_flag_2 == 1){
 		g_side_lamp_wait_effect = effect_value;
 		g_side_lamp_effect_flag = 0;
 		osMutexRelease(OutMutexHandle);
@@ -1294,7 +1310,8 @@ void update_sied_lamp_flow_effect_1(){
 
 void start_side_lamp_flow_effect_2(uint8_t effect_value){
 	osMutexAcquire(OutMutexHandle, osWaitForever);
-	if (g_side_lamp_flag == 1 || g_side_lamp_flag_2 == 1){
+	//if (g_side_lamp_flag == 1 || g_side_lamp_flag_2 == 1){
+	if (g_side_lamp_flag_2 == 1){
 		g_side_lamp_wait_effect = effect_value;
 		g_side_lamp_effect_flag = 0;
 		osMutexRelease(OutMutexHandle);
@@ -1328,7 +1345,8 @@ void update_sied_lamp_flow_effect_2(){
 
 void change_side_lamp_pulse_color(uint32_t color_value){
 	osMutexAcquire(OutMutexHandle, osWaitForever);
-	if (g_side_lamp_flag == 1 || g_side_lamp_flag_2 == 1){
+	//if (g_side_lamp_flag == 1 || g_side_lamp_flag_2 == 1){
+	if (g_side_lamp_flag_2 == 1){
 		//g_side_lamp_wait_color_value = color_value;
 		//g_side_lamp_wait_color_flag = 1;
 		osMutexRelease(OutMutexHandle);
@@ -1336,20 +1354,26 @@ void change_side_lamp_pulse_color(uint32_t color_value){
 	}
 
 	g_side_lamp_wait_color_flag = 0;
-	pwm_dma_init(SIDE_LAMP_1_DMA_INDEX,&htim16,TIM_CHANNEL_1,g_side_1_lamp_buffer,SIDE_LAMP_COUNT, side_lamp_callback_1);
+	//pwm_dma_init(SIDE_LAMP_1_DMA_INDEX,&htim16,TIM_CHANNEL_1,g_side_1_lamp_buffer,SIDE_LAMP_COUNT, side_lamp_callback_1);
 	pwm_dma_init(SIDE_LAMP_2_DMA_INDEX,&htim17,TIM_CHANNEL_1,g_side_2_lamp_buffer,SIDE_LAMP_COUNT, side_lamp_callback_2);
-	fill_lamp_buffer(g_side_1_lamp_buffer, color_value, SIDE_LAMP_COUNT, SIDE_LAMP_COUNT);
+	//fill_lamp_buffer(g_side_1_lamp_buffer, color_value, SIDE_LAMP_COUNT, SIDE_LAMP_COUNT);
 	fill_lamp_buffer(g_side_2_lamp_buffer, color_value, SIDE_LAMP_COUNT, SIDE_LAMP_COUNT);
-	pwm_dma_send(SIDE_LAMP_1_DMA_INDEX,LAMP_NON_BLOCK_MODE);
-	pwm_dma_send(SIDE_LAMP_2_DMA_INDEX,LAMP_NON_BLOCK_MODE);
-	g_side_lamp_flag = 1;
+	//pwm_dma_send(SIDE_LAMP_1_DMA_INDEX,LAMP_NON_BLOCK_MODE);
+	int ret = pwm_dma_send(SIDE_LAMP_2_DMA_INDEX,LAMP_NON_BLOCK_MODE);
+	if (ret!=HAL_OK){
+		osMutexRelease(OutMutexHandle);
+		PutErrorCode(ErrorQueueHandle, 0xEF);
+		return;
+	}
+	//g_side_lamp_flag = 1;
 	g_side_lamp_flag_2 = 1;
 	osMutexRelease(OutMutexHandle);
 }
 
 void start_side_lamp_pulse_effect(uint8_t effect_value){
 	osMutexAcquire(OutMutexHandle, osWaitForever);
-	if (g_side_lamp_flag == 1 || g_side_lamp_flag_2 == 1){
+	//if (g_side_lamp_flag == 1 || g_side_lamp_flag_2 == 1){
+	if (g_side_lamp_flag_2 == 1){
 		g_side_lamp_wait_effect = effect_value;
 		g_side_lamp_effect_flag = 0;
 		osMutexRelease(OutMutexHandle);
@@ -1374,7 +1398,7 @@ void update_side_lamp_pulse_effect(){
 		tick = osKernelGetSysTimerCount();
 		uint32_t diff = tick - g_side_lamp_effect_start;
 		uint32_t freq = osKernelGetSysTimerFreq();
-		uint32_t timeout_value = 0.03 * freq;
+		uint32_t timeout_value = 0.015 * freq;
 		if (diff >= timeout_value){
 			g_side_lamp_pulse_grey_color--;
 			g_side_lamp_effect_start = osKernelGetSysTimerCount();
@@ -1406,7 +1430,7 @@ void update_side_lamp_pulse_effect(){
 		tick = osKernelGetSysTimerCount();
 		uint32_t diff = tick - g_side_lamp_effect_start;
 		uint32_t freq = osKernelGetSysTimerFreq();
-		uint32_t timeout_value = 0.03 * freq;
+		uint32_t timeout_value = 0.015 * freq;
 		if (diff >= timeout_value){
 			g_side_lamp_pulse_grey_color++;
 			g_side_lamp_effect_start = osKernelGetSysTimerCount();
@@ -1465,20 +1489,26 @@ void fill_lamp_buffer_with_order(uint8_t* p_colors, uint32_t color_value, uint8_
 
 void change_side_lamp_with_order(uint8_t order){
 	osMutexAcquire(OutMutexHandle, osWaitForever);
-	if (g_side_lamp_flag == 1 || g_side_lamp_flag_2 == 1){
+	//if (g_side_lamp_flag == 1 || g_side_lamp_flag_2 == 1){
+	if (g_side_lamp_flag_2 == 1){
 		//g_side_lamp_wait_order = order;
 		osMutexRelease(OutMutexHandle);
 		return;
 	}
 
 	g_side_lamp_wait_order = 0;
-	pwm_dma_init(SIDE_LAMP_1_DMA_INDEX,&htim16,TIM_CHANNEL_1,g_side_1_lamp_buffer,SIDE_LAMP_COUNT, side_lamp_callback_1);
+	//pwm_dma_init(SIDE_LAMP_1_DMA_INDEX,&htim16,TIM_CHANNEL_1,g_side_1_lamp_buffer,SIDE_LAMP_COUNT, side_lamp_callback_1);
 	pwm_dma_init(SIDE_LAMP_2_DMA_INDEX,&htim17,TIM_CHANNEL_1,g_side_2_lamp_buffer,SIDE_LAMP_COUNT, side_lamp_callback_2);
-	fill_lamp_buffer_with_order(g_side_1_lamp_buffer, g_side_lamp_color_value, SIDE_LAMP_COUNT, order);
+	//fill_lamp_buffer_with_order(g_side_1_lamp_buffer, g_side_lamp_color_value, SIDE_LAMP_COUNT, order);
 	fill_lamp_buffer_with_order(g_side_2_lamp_buffer, g_side_lamp_color_value, SIDE_LAMP_COUNT, order);
-	pwm_dma_send(SIDE_LAMP_1_DMA_INDEX,LAMP_NON_BLOCK_MODE);
-	pwm_dma_send(SIDE_LAMP_2_DMA_INDEX,LAMP_NON_BLOCK_MODE);
-	g_side_lamp_flag = 1;
+	//pwm_dma_send(SIDE_LAMP_1_DMA_INDEX,LAMP_NON_BLOCK_MODE);
+	int ret = pwm_dma_send(SIDE_LAMP_2_DMA_INDEX,LAMP_NON_BLOCK_MODE);
+	if (ret!=HAL_OK){
+		osMutexRelease(OutMutexHandle);
+		PutErrorCode(ErrorQueueHandle, 0xEF);
+		return;
+	}
+	//g_side_lamp_flag = 1;
 	g_side_lamp_flag_2 = 1;
 	osMutexRelease(OutMutexHandle);
 }
@@ -1486,7 +1516,8 @@ void change_side_lamp_with_order(uint8_t order){
 
 void start_side_lamp_revolving_scenic_lantern_effect(uint8_t effect_value, uint8_t circle_count){
 	osMutexAcquire(OutMutexHandle, osWaitForever);
-	if (g_side_lamp_flag == 1 || g_side_lamp_flag_2 == 1){
+	//if (g_side_lamp_flag == 1 || g_side_lamp_flag_2 == 1){
+	if (g_side_lamp_flag_2 == 1){
 		g_side_lamp_wait_effect = effect_value;
 		g_side_lamp_wait_effect_value = circle_count;
 		g_side_lamp_effect_flag = 0;
@@ -1533,9 +1564,9 @@ void update_side_lamp_revolving_scenic_lantern_effect(){
 	}
 }
 
-void side_lamp_callback_1(){
-	g_side_lamp_flag = 0;
-}
+//void side_lamp_callback_1(){
+//	g_side_lamp_flag = 0;
+//}
 
 void side_lamp_callback_2(){
 	g_side_lamp_flag_2 = 0;
@@ -1543,7 +1574,8 @@ void side_lamp_callback_2(){
 
 void side_lamp_update_effect(){
 	osMutexAcquire(OutMutexHandle, osWaitForever);
-	if (g_side_lamp_flag == 1 || g_side_lamp_flag_2 == 1){
+	//if (g_side_lamp_flag == 1 || g_side_lamp_flag_2 == 1){
+	if (g_side_lamp_flag_2 == 1){
 		osMutexRelease(OutMutexHandle);
 		return;
 	}
@@ -1660,7 +1692,6 @@ int main(void)
   MX_TIM2_Init();
   MX_TIM3_Init();
   MX_TIM8_Init();
-  MX_TIM16_Init();
   MX_TIM17_Init();
   MX_USB_PCD_Init();
   /* USER CODE BEGIN 2 */
@@ -2233,69 +2264,6 @@ static void MX_TIM8_Init(void)
 }
 
 /**
-  * @brief TIM16 Initialization Function
-  * @param None
-  * @retval None
-  */
-static void MX_TIM16_Init(void)
-{
-
-  /* USER CODE BEGIN TIM16_Init 0 */
-
-  /* USER CODE END TIM16_Init 0 */
-
-  TIM_OC_InitTypeDef sConfigOC = {0};
-  TIM_BreakDeadTimeConfigTypeDef sBreakDeadTimeConfig = {0};
-
-  /* USER CODE BEGIN TIM16_Init 1 */
-
-  /* USER CODE END TIM16_Init 1 */
-  htim16.Instance = TIM16;
-  htim16.Init.Prescaler = 14;
-  htim16.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim16.Init.Period = 4;
-  htim16.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
-  htim16.Init.RepetitionCounter = 0;
-  htim16.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
-  if (HAL_TIM_Base_Init(&htim16) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  if (HAL_TIM_PWM_Init(&htim16) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  sConfigOC.OCMode = TIM_OCMODE_PWM1;
-  sConfigOC.Pulse = 0;
-  sConfigOC.OCPolarity = TIM_OCPOLARITY_HIGH;
-  sConfigOC.OCNPolarity = TIM_OCNPOLARITY_HIGH;
-  sConfigOC.OCFastMode = TIM_OCFAST_DISABLE;
-  sConfigOC.OCIdleState = TIM_OCIDLESTATE_RESET;
-  sConfigOC.OCNIdleState = TIM_OCNIDLESTATE_RESET;
-  if (HAL_TIM_PWM_ConfigChannel(&htim16, &sConfigOC, TIM_CHANNEL_1) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  sBreakDeadTimeConfig.OffStateRunMode = TIM_OSSR_DISABLE;
-  sBreakDeadTimeConfig.OffStateIDLEMode = TIM_OSSI_DISABLE;
-  sBreakDeadTimeConfig.LockLevel = TIM_LOCKLEVEL_OFF;
-  sBreakDeadTimeConfig.DeadTime = 0;
-  sBreakDeadTimeConfig.BreakState = TIM_BREAK_DISABLE;
-  sBreakDeadTimeConfig.BreakPolarity = TIM_BREAKPOLARITY_HIGH;
-  sBreakDeadTimeConfig.BreakFilter = 0;
-  sBreakDeadTimeConfig.AutomaticOutput = TIM_AUTOMATICOUTPUT_DISABLE;
-  if (HAL_TIMEx_ConfigBreakDeadTime(&htim16, &sBreakDeadTimeConfig) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  /* USER CODE BEGIN TIM16_Init 2 */
-
-  /* USER CODE END TIM16_Init 2 */
-  HAL_TIM_MspPostInit(&htim16);
-
-}
-
-/**
   * @brief TIM17 Initialization Function
   * @param None
   * @retval None
@@ -2547,16 +2515,13 @@ static void MX_DMA_Init(void)
 
   /* DMA interrupt init */
   /* DMA1_Channel1_IRQn interrupt configuration */
-  HAL_NVIC_SetPriority(DMA1_Channel1_IRQn, 5, 0);
+  HAL_NVIC_SetPriority(DMA1_Channel1_IRQn, 6, 0);
   HAL_NVIC_EnableIRQ(DMA1_Channel1_IRQn);
   /* DMA1_Channel2_IRQn interrupt configuration */
-  HAL_NVIC_SetPriority(DMA1_Channel2_IRQn, 5, 0);
+  HAL_NVIC_SetPriority(DMA1_Channel2_IRQn, 6, 0);
   HAL_NVIC_EnableIRQ(DMA1_Channel2_IRQn);
-  /* DMA1_Channel3_IRQn interrupt configuration */
-  HAL_NVIC_SetPriority(DMA1_Channel3_IRQn, 5, 0);
-  HAL_NVIC_EnableIRQ(DMA1_Channel3_IRQn);
   /* DMA1_Channel4_IRQn interrupt configuration */
-  HAL_NVIC_SetPriority(DMA1_Channel4_IRQn, 5, 0);
+  HAL_NVIC_SetPriority(DMA1_Channel4_IRQn, 6, 0);
   HAL_NVIC_EnableIRQ(DMA1_Channel4_IRQn);
 
 }
