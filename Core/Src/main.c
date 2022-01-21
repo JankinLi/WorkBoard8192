@@ -1398,7 +1398,7 @@ void update_side_lamp_pulse_effect(){
 		tick = osKernelGetSysTimerCount();
 		uint32_t diff = tick - g_side_lamp_effect_start;
 		uint32_t freq = osKernelGetSysTimerFreq();
-		uint32_t timeout_value = 0.03 * freq;
+		uint32_t timeout_value = 0.02 * freq;
 		if (diff >= timeout_value){
 			g_side_lamp_pulse_grey_color--;
 			g_side_lamp_effect_start = osKernelGetSysTimerCount();
@@ -1430,7 +1430,7 @@ void update_side_lamp_pulse_effect(){
 		tick = osKernelGetSysTimerCount();
 		uint32_t diff = tick - g_side_lamp_effect_start;
 		uint32_t freq = osKernelGetSysTimerFreq();
-		uint32_t timeout_value = 0.03 * freq;
+		uint32_t timeout_value = 0.02 * freq;
 		if (diff >= timeout_value){
 			g_side_lamp_pulse_grey_color++;
 			g_side_lamp_effect_start = osKernelGetSysTimerCount();
@@ -1479,7 +1479,7 @@ void fill_lamp_buffer_with_order(uint8_t* p_colors, uint32_t color_value, uint8_
 
 		for(pos = pos1; pos <= pos2; pos++){
 			if (pos > 167){
-				pos = pos - 168;
+				pos = pos - 167;
 			}
 			p_colors[(pos-1)*3 + 0] = red_value;
 			p_colors[(pos-1)*3 + 1] = green_value;
@@ -1818,7 +1818,7 @@ void SystemClock_Config(void)
   RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
   RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSE;
   RCC_OscInitStruct.PLL.PLLM = RCC_PLLM_DIV2;
-  RCC_OscInitStruct.PLL.PLLN = 10;
+  RCC_OscInitStruct.PLL.PLLN = 20;
   RCC_OscInitStruct.PLL.PLLP = RCC_PLLP_DIV2;
   RCC_OscInitStruct.PLL.PLLQ = RCC_PLLQ_DIV2;
   RCC_OscInitStruct.PLL.PLLR = RCC_PLLR_DIV2;
@@ -1835,7 +1835,7 @@ void SystemClock_Config(void)
   RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV1;
   RCC_ClkInitStruct.APB2CLKDivider = RCC_HCLK_DIV1;
 
-  if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_1) != HAL_OK)
+  if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_3) != HAL_OK)
   {
     Error_Handler();
   }
@@ -1985,7 +1985,7 @@ static void MX_TIM1_Init(void)
 
   /* USER CODE END TIM1_Init 1 */
   htim1.Instance = TIM1;
-  htim1.Init.Prescaler = 14;
+  htim1.Init.Prescaler = 29;
   htim1.Init.CounterMode = TIM_COUNTERMODE_UP;
   htim1.Init.Period = 4;
   htim1.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
@@ -2082,7 +2082,7 @@ static void MX_TIM2_Init(void)
 
   /* USER CODE END TIM2_Init 1 */
   htim2.Instance = TIM2;
-  htim2.Init.Prescaler = 119;
+  htim2.Init.Prescaler = 239;
   htim2.Init.CounterMode = TIM_COUNTERMODE_UP;
   htim2.Init.Period = 19;
   htim2.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
@@ -2141,7 +2141,7 @@ static void MX_TIM3_Init(void)
 
   /* USER CODE END TIM3_Init 1 */
   htim3.Instance = TIM3;
-  htim3.Init.Prescaler = 119;
+  htim3.Init.Prescaler = 239;
   htim3.Init.CounterMode = TIM_COUNTERMODE_UP;
   htim3.Init.Period = 19;
   htim3.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
@@ -2201,7 +2201,7 @@ static void MX_TIM8_Init(void)
 
   /* USER CODE END TIM8_Init 1 */
   htim8.Instance = TIM8;
-  htim8.Init.Prescaler = 119;
+  htim8.Init.Prescaler = 239;
   htim8.Init.CounterMode = TIM_COUNTERMODE_UP;
   htim8.Init.Period = 19;
   htim8.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
@@ -2285,7 +2285,7 @@ static void MX_TIM17_Init(void)
 
   /* USER CODE END TIM17_Init 1 */
   htim17.Instance = TIM17;
-  htim17.Init.Prescaler = 14;
+  htim17.Init.Prescaler = 29;
   htim17.Init.CounterMode = TIM_COUNTERMODE_UP;
   htim17.Init.Period = 4;
   htim17.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
