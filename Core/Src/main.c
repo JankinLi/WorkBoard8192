@@ -1398,7 +1398,7 @@ void update_side_lamp_pulse_effect(){
 		tick = osKernelGetSysTimerCount();
 		uint32_t diff = tick - g_side_lamp_effect_start;
 		uint32_t freq = osKernelGetSysTimerFreq();
-		uint32_t timeout_value = 0.015 * freq;
+		uint32_t timeout_value = 0.03 * freq;
 		if (diff >= timeout_value){
 			g_side_lamp_pulse_grey_color--;
 			g_side_lamp_effect_start = osKernelGetSysTimerCount();
@@ -1430,7 +1430,7 @@ void update_side_lamp_pulse_effect(){
 		tick = osKernelGetSysTimerCount();
 		uint32_t diff = tick - g_side_lamp_effect_start;
 		uint32_t freq = osKernelGetSysTimerFreq();
-		uint32_t timeout_value = 0.015 * freq;
+		uint32_t timeout_value = 0.03 * freq;
 		if (diff >= timeout_value){
 			g_side_lamp_pulse_grey_color++;
 			g_side_lamp_effect_start = osKernelGetSysTimerCount();
@@ -1478,6 +1478,9 @@ void fill_lamp_buffer_with_order(uint8_t* p_colors, uint32_t color_value, uint8_
 		pos2 = ((n+1) *28) + order;
 
 		for(pos = pos1; pos <= pos2; pos++){
+			if (pos > 167){
+				pos = pos - 168;
+			}
 			p_colors[(pos-1)*3 + 0] = red_value;
 			p_colors[(pos-1)*3 + 1] = green_value;
 			p_colors[(pos-1)*3 + 2] = blue_value;
@@ -1553,7 +1556,7 @@ void update_side_lamp_revolving_scenic_lantern_effect(){
 	if (diff >= timeout_value){
 		g_side_lamp_effect_start = osKernelGetSysTimerCount();
 		if (g_side_lamp_effect_order < 28){
-			g_side_lamp_effect_order++;
+			g_side_lamp_effect_order+=2;
 			change_side_lamp_with_order(g_side_lamp_effect_order);
 			return;
 		}
