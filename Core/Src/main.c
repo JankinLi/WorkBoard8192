@@ -1143,7 +1143,7 @@ void energy_lamp_callback(){
 
 
 // Side Lamp
-#define SIDE_LAMP_COUNT 168
+#define SIDE_LAMP_COUNT 84
 
 #define SIDE_LAMP_1_DMA_INDEX 2
 #define SIDE_LAMP_2_DMA_INDEX 3
@@ -1171,10 +1171,6 @@ uint8_t g_side_lamp_effect_flag = 0;
 void side_lamp_callback_1();
 void side_lamp_callback_2();
 
-//void side_lamp_init(){
-//	pwm_dma_init(SIDE_LAMP_1_DMA_INDEX,&htim16,TIM_CHANNEL_1,g_side_1_lamp_buffer,SIDE_LAMP_COUNT, side_lamp_callback_1);
-//	pwm_dma_init(SIDE_LAMP_2_DMA_INDEX,&htim17,TIM_CHANNEL_1,g_side_2_lamp_buffer,SIDE_LAMP_COUNT, side_lamp_callback_2);
-//}
 
 void change_side_lamp_color(){
 	osMutexAcquire(OutMutexHandle, osWaitForever);
@@ -1473,14 +1469,16 @@ void fill_lamp_buffer_with_order(uint8_t* p_colors, uint32_t color_value, uint8_
 	int n = 0;
 	int pos1 = 0;
 	int pos2 = 0;
+	int seg_num = (SIDE_LAMP_COUNT/6);
+
 	while( n < 5){
-		pos1 = ((n*28) + 1) + order;
-		pos2 = ((n+1) *28) + order;
+		pos1 = ((n*seg_num) + 1) + order;
+		pos2 = ((n+1) *seg_num) + order;
 
 		for(pos = pos1; pos <= pos2; pos++){
 			int index = pos;
-			if (index > 168){
-				index = index - 168;
+			if (index > SIDE_LAMP_COUNT){
+				index = index - SIDE_LAMP_COUNT;
 			}
 			p_colors[(index-1)*3 + 0] = red_value;
 			p_colors[(index-1)*3 + 1] = green_value;
@@ -1537,7 +1535,7 @@ void start_side_lamp_revolving_scenic_lantern_effect(uint8_t effect_value, uint8
 		circle_count = 150;
 	}
 	float recircle_time = (float)90/(float)circle_count;
-	g_revolving_scenic_lantern_time = recircle_time/28.0;
+	g_revolving_scenic_lantern_time = recircle_time/14.0;
 
 	g_side_lamp_effect_order = 0x00;
 
@@ -1556,7 +1554,7 @@ void update_side_lamp_revolving_scenic_lantern_effect(){
 	uint32_t timeout_value = g_revolving_scenic_lantern_time * freq;
 	if (diff >= timeout_value){
 		g_side_lamp_effect_start = osKernelGetSysTimerCount();
-		if (g_side_lamp_effect_order < 56){
+		if (g_side_lamp_effect_order < 28){
 			g_side_lamp_effect_order+=2;
 			change_side_lamp_with_order(g_side_lamp_effect_order);
 			return;
@@ -1863,7 +1861,7 @@ static void MX_ADC1_Init(void)
   /** Common config
   */
   hadc1.Instance = ADC1;
-  hadc1.Init.ClockPrescaler = ADC_CLOCK_ASYNC_DIV6;
+  hadc1.Init.ClockPrescaler = ADC_CLOCK_ASYNC_DIV10;
   hadc1.Init.Resolution = ADC_RESOLUTION_12B;
   hadc1.Init.DataAlign = ADC_DATAALIGN_RIGHT;
   hadc1.Init.GainCompensation = 0;
@@ -1927,7 +1925,7 @@ static void MX_ADC2_Init(void)
   /** Common config
   */
   hadc2.Instance = ADC2;
-  hadc2.Init.ClockPrescaler = ADC_CLOCK_ASYNC_DIV6;
+  hadc2.Init.ClockPrescaler = ADC_CLOCK_ASYNC_DIV10;
   hadc2.Init.Resolution = ADC_RESOLUTION_12B;
   hadc2.Init.DataAlign = ADC_DATAALIGN_RIGHT;
   hadc2.Init.GainCompensation = 0;
