@@ -1528,11 +1528,11 @@ void start_side_lamp_revolving_scenic_lantern_effect(uint8_t effect_value, uint8
 	}
 
 	g_side_lamp_wait_effect = 0;
-	if (circle_count == 0){
+	if (circle_count <= 0){
 		circle_count = 1;
 	}
-	if (circle_count > 150){
-		circle_count = 150;
+	if (circle_count > 200){
+		circle_count = 200;
 	}
 	float recircle_time = (float)90/(float)circle_count;
 	g_revolving_scenic_lantern_time = recircle_time/14.0;

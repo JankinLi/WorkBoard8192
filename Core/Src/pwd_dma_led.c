@@ -84,6 +84,20 @@ void led_color_convert(uint8_t* p_led_buffer,DMA_TYPE* p_dma_buffer)
     }
 }
 
+void byte_to_duty(uint8_t byte_value, DMA_TYPE* p_dma_buffer)
+{
+    DMA_TYPE bit_value = 0;
+    DMA_TYPE* p_dest = p_dma_buffer;
+    for(int i = 0; i < 8; i++){
+        bit_value = (byte_value >> (8 - i)) & 0x01;
+        if (bit_value == 0){
+            *p_dest = DUTY_0;
+        }else {
+            *p_dest = DUTY_1;
+        }
+        p_dest++;
+    }
+}
 /**
 * @brief Fill DMA Buffer data.
 *   PWM_DMA_HEAD_RST: Fill all data with TRST,
@@ -100,59 +114,43 @@ void led_color_convert(uint8_t* p_led_buffer,DMA_TYPE* p_dma_buffer)
 */
 void led_data_fill(PWM_DMA_DATA_STRUCT* p_dma_data,uint8_t b_half)
 {
-    DMA_TYPE *p_pwm_buffer = (DMA_TYPE*)p_dma_data->inter_dma_data.pwm_buffer;
+    DMA_TYPE *p_pwm_buffer = (DMA_TYPE*)(p_dma_data->inter_dma_data.pwm_buffer);
+    int led_len = p_dma_data->total_leds*3;
 
-    if ( p_dma_data->inter_dma_data.status == PWM_DMA_LED_SET){
-
-        if (p_dma_data->inter_dma_data.cur_led < p_dma_data->total_leds){
-            uint8_t *p_led_buffer = p_dma_data->p_dma_colors + 3 * p_dma_data->inter_dma_data.cur_led;
-            if (b_half == 0){ //Once DMA Send Finished
-                p_pwm_buffer += DMA_BUFFER_HALF_LEN;
+    if (b_half == 0){ // Fill the end half data
+        if (p_dma_data->inter_dma_data.cur_pos >= led_len + TRST_BYTE_LEN){ // All Data Finished
+            // All DMA send Finished
+            HAL_TIM_PWM_Stop_DMA(p_dma_data->htim,
+                                p_dma_data->dma_channel);
+            p_dma_data->inter_dma_data.b_busy = 0;
+            if (p_dma_data->send_finishedCallback != NULL){
+                p_dma_data->send_finishedCallback(p_dma_data);
             }
-            led_color_convert(p_led_buffer,p_pwm_buffer);
-            p_dma_data->inter_dma_data.cur_led++;
-        }else{ //Last LED filled
-            if(b_half == 1){
-                memset(p_pwm_buffer,0,DMA_BUFFER_HALF_LEN*sizeof(DMA_TYPE));
-                p_dma_data->inter_dma_data.status = PWM_DMA_END_RST;
-            }else{
-                p_pwm_buffer += DMA_BUFFER_HALF_LEN;
-                memset(p_pwm_buffer,0,DMA_BUFFER_HALF_LEN*sizeof(DMA_TYPE));
-                p_dma_data->inter_dma_data.status = PWM_DMA_END_RST;
-            }
+            return;
         }
-        return ;
+
+        p_pwm_buffer += DMA_BUFFER_HALF_LEN;
     }
 
-    if ( p_dma_data->inter_dma_data.status == PWM_DMA_END_RST ){
+    int pos = 0;
+    uint8_t* p_colors;
 
-        if (b_half == 0){
-            p_pwm_buffer += DMA_BUFFER_HALF_LEN;
-            memset(p_pwm_buffer,0,DMA_BUFFER_HALF_LEN*sizeof(DMA_TYPE));
-            p_dma_data->inter_dma_data.status = PWM_DMA_END;
-        }else{
-            memset(p_pwm_buffer,0,DMA_BUFFER_HALF_LEN*sizeof(DMA_TYPE));
+    while( pos < DMA_BUFFER_HALF_LEN){
+        if (p_dma_data->inter_dma_data.cur_pos < 0){ // Add Header TRST
+            memset(p_pwm_buffer,DUTY_RESET,8);
+        }else if (p_dma_data->inter_dma_data.cur_pos < led_len){ // LED Value; 8
+            p_colors = (uint8_t*)(p_dma_data->p_dma_colors + p_dma_data->inter_dma_data.cur_pos);
+            byte_to_duty(*p_colors,p_pwm_buffer);
+        }else if (p_dma_data->inter_dma_data.cur_pos < led_len + TRST_BYTE_LEN){ //End TRST
+            memset(p_pwm_buffer,DUTY_RESET,8);
+        }else{  // LED DATA Finsh
+            memset(p_pwm_buffer,DUTY_HIGHT,8);
         }
-        return;
+        p_dma_data->inter_dma_data.cur_pos++;
+        pos += 8;
+        p_pwm_buffer += 8;
     }
 
-    if ( p_dma_data->inter_dma_data.status == PWM_DMA_HEAD_RST ){
-        // Set First TRST
-        memset(p_pwm_buffer,0,DMA_BUFFER_LEN*sizeof(DMA_TYPE));
-        p_dma_data->inter_dma_data.status = PWM_DMA_LED_SET;
-        return;
-    }
-
-    if ( p_dma_data->inter_dma_data.status == PWM_DMA_END && b_half == 0){
-        // All DMA send Finished
-	    HAL_TIM_PWM_Stop_DMA(p_dma_data->htim,
-                             p_dma_data->dma_channel);
-        p_dma_data->inter_dma_data.b_completed = 1;
-        if (p_dma_data->send_finishedCallback != NULL){
-			p_dma_data->send_finishedCallback();
-		}
-        return;
-    }
 
 }
 /**
@@ -163,10 +161,11 @@ void led_data_fill(PWM_DMA_DATA_STRUCT* p_dma_data,uint8_t b_half)
 * @param channel: pwm DMA channel
 * @param p_colors: the color buffer of LEDs, every LED color use 24bit (RGB)  = 3 Byte
 * @param leds_count: the numbers of LEDs
+* @param p_callback: Callback function
 * @retval 0: success
 */
 void pwm_dma_init(uint32_t dma_id, TIM_HandleTypeDef *htim, uint32_t channel,
-                 uint8_t* p_colors, uint32_t leds_count , void *p_callback)
+                 uint8_t* p_colors, uint32_t leds_count, void *p_callback )
 {
     if (dma_id >= PWM_LED_CHANNEL_MAX_COUNT){
         return;
@@ -177,7 +176,7 @@ void pwm_dma_init(uint32_t dma_id, TIM_HandleTypeDef *htim, uint32_t channel,
     pwm_dma_data[dma_id].p_dma_colors = p_colors;
     pwm_dma_data[dma_id].total_leds = leds_count;
     pwm_dma_data[dma_id].send_finishedCallback = p_callback;
-
+    pwm_dma_data[dma_id].inter_dma_data.b_busy = 0;
 }
 
 /**
@@ -192,19 +191,19 @@ void pwm_dma_init(uint32_t dma_id, TIM_HandleTypeDef *htim, uint32_t channel,
 */
 int pwm_dma_send(uint32_t dma_id,uint8_t b_block)
 {
-    int res = 0;
+    int res = PWM_DMA_OK;
     if (dma_id >= PWM_LED_CHANNEL_MAX_COUNT){
-        return -1;
+        return PWM_DMA_ERROR_IDX;
     }
 
     if(pwm_dma_data[dma_id].htim == NULL){
-        return -1;
+        return PWM_DMA_ERROR_INIT;
     }
 
-    pwm_dma_data[dma_id].inter_dma_data.status = PWM_DMA_HEAD_RST;
-    pwm_dma_data[dma_id].inter_dma_data.cur_led = 0;
-    pwm_dma_data[dma_id].inter_dma_data.b_completed = 0;
+    pwm_dma_data[dma_id].inter_dma_data.cur_pos = -TRST_BYTE_LEN;
+    pwm_dma_data[dma_id].inter_dma_data.b_busy = 1;
 
+    led_data_fill(pwm_dma_data+dma_id,1);
     led_data_fill(pwm_dma_data+dma_id,0);
     res = HAL_TIM_PWM_Start_DMA(pwm_dma_data[dma_id].htim,
                                 pwm_dma_data[dma_id].dma_channel,
@@ -215,10 +214,11 @@ int pwm_dma_send(uint32_t dma_id,uint8_t b_block)
     }
 
     if (b_block){ // Block Mode
-        while(pwm_dma_data[dma_id].inter_dma_data.b_completed == 0){
+        while(pwm_dma_data[dma_id].inter_dma_data.b_busy == 1){
             osDelay(1);
         }
     }
 
     return res;
 }
+
