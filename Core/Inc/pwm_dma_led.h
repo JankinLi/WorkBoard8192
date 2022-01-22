@@ -55,7 +55,7 @@ struct _pwm_dma_data_struct {
     INTER_PWM_DMA_STRUCT    inter_dma_data;
 };
 
-#define PWM_LED_CHANNEL_MAX_COUNT  4 // The max count of DMA Channel which is used to control different LED IC.
+#define PWM_LED_CHANNEL_MAX_COUNT  3 // The max count of DMA Channel which is used to control different LED IC.
 
 void pwm_dma_init(uint32_t dma_id, TIM_HandleTypeDef *htim, uint32_t channel,
                  uint8_t* p_colors, uint32_t leds_count, void *p_callback );
