@@ -954,8 +954,6 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) {
 //--------------------------------------------------------------------------------------
 //All Lamp
 
-uint8_t g_start_lamp_order = 0;
-
 #define LAMP_NON_BLOCK_MODE 0
 #define LAMP_BLOCK_MODE 1
 
@@ -2633,11 +2631,13 @@ void StartMainRecvTask(void *argument)
 
 	uint32_t default_color = 0x00FFFF;
 
-	//g_start_lamp_order = 2;
-
 	g_logo_lamp_color_value = default_color;
 	g_energy_lamp_color_value = default_color;
 	g_side_lamp_color_value = default_color;
+
+	change_logo_lamp_color();
+	change_energy_lamp_color();
+	start_side_lamp_flow_effect_1(0x04);
 
 	g_wait_down_board_start = osKernelGetSysTimerCount();
 	HAL_UART_Transmit(&huart4,(uint8_t*)g_down_borad_init_data_ptr,0x08,0xffff);
