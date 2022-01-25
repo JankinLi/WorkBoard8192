@@ -20,9 +20,11 @@
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
 #include "cmsis_os.h"
+#include "usb_device.h"
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
+#include "usbd_hid.h"
 #include "tool.h"
 #include <string.h>
 #include "pwm_dma_led.h"
@@ -58,8 +60,6 @@ DMA_HandleTypeDef hdma_tim17_ch1;
 UART_HandleTypeDef huart4;
 UART_HandleTypeDef huart1;
 UART_HandleTypeDef huart3;
-
-PCD_HandleTypeDef hpcd_USB_FS;
 
 /* Definitions for MainRecvTask */
 osThreadId_t MainRecvTaskHandle;
@@ -139,7 +139,6 @@ static void MX_TIM2_Init(void);
 static void MX_TIM3_Init(void);
 static void MX_TIM8_Init(void);
 static void MX_TIM17_Init(void);
-static void MX_USB_PCD_Init(void);
 void StartMainRecvTask(void *argument);
 void StartWorkTask(void *argument);
 void StartOutTask(void *argument);
@@ -705,26 +704,81 @@ void update_motor_2_action(){
 	}
 }
 
-
-//key
-uint8_t g_key_1_value = 0x02;
-uint8_t g_key_1_report_flag = 0x00;
-
-uint8_t g_key_2_value = 0x02;
-uint8_t g_key_2_report_flag = 0x00;
-
 //Fan
 uint8_t g_fan_1_value = 0x00;
 uint8_t g_fan_2_value = 0x00;
 uint8_t g_fan_3_value = 0x00;
 uint8_t g_fan_4_value = 0x00;
 
+//key
+extern USBD_HandleTypeDef hUsbDeviceFS;
+
+uint8_t g_key_1_value = 0x02;
+uint8_t g_key_1_old_value = 0x02;
+uint8_t g_key_1_report_flag = 0x00;
+
+uint8_t g_key_2_value = 0x02;
+uint8_t g_key_2_old_value = 0x02;
+uint8_t g_key_2_report_flag = 0x00;
+
 // Angle detect.
 uint8_t g_angle_report_flag = 0x00;
 uint32_t g_angle_detect_value = 0x00;
+uint32_t g_angle_detect_old_value = 0x00;
 uint8_t g_angle_adc_flag = 0x00;
 uint32_t g_angle_adc_start = 0;
 uint32_t g_angle_detect_flag = 0;
+
+void UsbReportValue(){
+	uint8_t buf[3]={0,0,0};
+	uint8_t report = 0;
+
+	if (g_key_1_old_value != g_key_1_value){
+		report = 1;
+		if (g_key_1_value == 0x01){
+			buf[0] = 1;
+		}
+		else if (g_key_1_value == 0x02){
+			buf[0] = 0;
+		}
+	}
+	if (g_key_2_old_value != g_key_2_value){
+		report = 1;
+		if (g_key_2_value == 0x01){
+			buf[0] = 2;
+		}
+		else if (g_key_2_value == 0x02){
+			buf[0] = 0;
+		}
+	}
+
+	if (g_angle_detect_old_value != g_angle_detect_value){
+		report = 1;
+		float v_value = ((float)g_angle_detect_value * 4096.0) /3300.0;
+		if (v_value < 270.0) {
+			float tmp = 270.0 - v_value;
+			if (tmp < 0.0){
+				tmp = 0.0;
+			}
+			float value = tmp * 127.0 /270.0;
+			int int_value = (int)value;
+			buf[1] = 0 - int_value;
+		}
+		else if (v_value >= 270.0) {
+			float tmp = v_value - 270.0;
+			if (tmp > 270.0){
+				tmp = 270.0;
+			}
+			float value = tmp * 127.0 /270.0;
+			int int_value = (int)value;
+			buf[1] = int_value;
+		}
+	}
+
+	if (report == 1){
+		USBD_HID_SendReport (&hUsbDeviceFS, buf, 3);
+	}
+}
 
 // ADC
 void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc)
@@ -735,6 +789,8 @@ void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc)
 		uint32_t ADC_VALUE = HAL_ADC_GetValue(&hadc1);
 
 		//uint32_t Value_1=(uint32_t)((ADC_VALUE*3.3/4096)*1000);
+
+		g_angle_detect_old_value = g_angle_detect_value;
 		g_angle_detect_value = ADC_VALUE;
 		g_angle_report_flag = 0x01;
 
@@ -873,24 +929,24 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) {
 	}
 	else if(GPIO_Pin == GPIO_PIN_4){  //KEY1_DET //PA4
 		if (HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_4) == GPIO_PIN_SET){
+			g_key_1_old_value = g_key_1_value;
 			g_key_1_value = 0x01;
-			//put_byte_into_out_buffer(0x05, 0x01, 0x01);
 			g_key_1_report_flag = 0x01;
 		}
 		else if (HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_4) == GPIO_PIN_RESET){
+			g_key_1_old_value = g_key_1_value;
 			g_key_1_value = 0x02;
-			//put_byte_into_out_buffer(0x05, 0x01, 0x02);
 		}
 	}
 	else if(GPIO_Pin == GPIO_PIN_2){  //KEY2_DET //PB2
 		if (HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_2) == GPIO_PIN_SET){
+			g_key_2_old_value = g_key_2_value;
 			g_key_2_value = 0x01;
 			g_key_2_report_flag = 0x01;
-			//put_byte_into_out_buffer(0x05, 0x02, 0x01);
 		}
 		else if (HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_2) == GPIO_PIN_RESET){
+			g_key_2_old_value = g_key_2_value;
 			g_key_2_value = 0x02;
-			//put_byte_into_out_buffer(0x05, 0x02, 0x02);
 		}
 	}
 	else if(GPIO_Pin == GPIO_PIN_14){  //PWR_DOWN //PB14
@@ -1681,7 +1737,7 @@ int main(void)
   MX_TIM3_Init();
   MX_TIM8_Init();
   MX_TIM17_Init();
-  MX_USB_PCD_Init();
+  MX_USB_Device_Init();
   /* USER CODE BEGIN 2 */
 
   __HAL_TIM_CLEAR_IT(&htim1, TIM_IT_UPDATE);
@@ -2459,39 +2515,6 @@ static void MX_USART3_UART_Init(void)
 }
 
 /**
-  * @brief USB Initialization Function
-  * @param None
-  * @retval None
-  */
-static void MX_USB_PCD_Init(void)
-{
-
-  /* USER CODE BEGIN USB_Init 0 */
-
-  /* USER CODE END USB_Init 0 */
-
-  /* USER CODE BEGIN USB_Init 1 */
-
-  /* USER CODE END USB_Init 1 */
-  hpcd_USB_FS.Instance = USB;
-  hpcd_USB_FS.Init.dev_endpoints = 8;
-  hpcd_USB_FS.Init.speed = PCD_SPEED_FULL;
-  hpcd_USB_FS.Init.phy_itface = PCD_PHY_EMBEDDED;
-  hpcd_USB_FS.Init.Sof_enable = DISABLE;
-  hpcd_USB_FS.Init.low_power_enable = DISABLE;
-  hpcd_USB_FS.Init.lpm_enable = DISABLE;
-  hpcd_USB_FS.Init.battery_charging_enable = DISABLE;
-  if (HAL_PCD_Init(&hpcd_USB_FS) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  /* USER CODE BEGIN USB_Init 2 */
-
-  /* USER CODE END USB_Init 2 */
-
-}
-
-/**
   * Enable DMA controller clock
   */
 static void MX_DMA_Init(void)
@@ -2680,6 +2703,8 @@ void StartMainRecvTask(void *argument)
 				}
 			}
 		}
+
+		UsbReportValue();
 
 		if (g_angle_report_flag == 0x01){
 			g_angle_report_flag = 0x00;
