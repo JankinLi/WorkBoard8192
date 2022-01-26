@@ -738,17 +738,11 @@ void UsbReportValue(){
 		if (g_key_1_value == 0x01){
 			buf[0] = 1;
 		}
-		else if (g_key_1_value == 0x02){
-			buf[0] = 0;
-		}
 	}
 	if (g_key_2_old_value != g_key_2_value){
 		report = 1;
 		if (g_key_2_value == 0x01){
-			buf[0] = 2;
-		}
-		else if (g_key_2_value == 0x02){
-			buf[0] = 0;
+			buf[0] += 2;
 		}
 	}
 
