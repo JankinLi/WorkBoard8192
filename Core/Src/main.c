@@ -1655,13 +1655,21 @@ void start_side_lamp_revolving_scenic_lantern_effect(uint8_t effect_value, uint8
 	float recircle_time = (float)90/(float)circle_count;
 	g_revolving_scenic_lantern_time = recircle_time/14.0;
 
-	g_side_lamp_effect_order = 0x00;
+	uint8_t current_effect_flag = g_side_lamp_effect_flag;
+	if (current_effect_flag != 0x03){
+		g_side_lamp_effect_order = 0x00;
+	}
 
-	g_side_lamp_effect_start = osKernelGetSysTimerCount();
-	g_side_lamp_effect_flag = effect_value;
+	if (current_effect_flag != 0x03){
+		g_side_lamp_effect_start = osKernelGetSysTimerCount();
+		g_side_lamp_effect_flag = effect_value;
+	}
+
 	osMutexRelease(OutMutexHandle);
 
-	change_side_lamp_with_order(g_side_lamp_effect_order);
+	if (current_effect_flag != 0x03){
+		change_side_lamp_with_order(g_side_lamp_effect_order);
+	}
 }
 
 void update_side_lamp_revolving_scenic_lantern_effect(){
