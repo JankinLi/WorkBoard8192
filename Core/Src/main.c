@@ -533,6 +533,32 @@ void put_byte_into_out_buffer(uint8_t type1_value, uint8_t type2_value, uint8_t 
 	osMutexRelease(OutMutexHandle);
 }
 
+void send_byte_to_uart1(uint8_t type1_value, uint8_t type2_value, uint8_t value){
+	char buffer[8] = {0x4D, 0x43, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
+	buffer[2] = type1_value;
+	buffer[3] = type2_value;
+
+	char main_out_buffer[30];
+	char *p = main_out_buffer;
+	if (value >= 0){
+		char *p_len = buffer + 4;
+		int len = 1;
+		memcpy(p_len, &len, 1);
+	}
+	memcpy(p, buffer, 8);
+
+	if (value >= 0){
+		char *p_data = p + 8;
+		memcpy(p_data, &value, 1);
+	}
+
+	char *out_data_ptr = p;
+	char *p_len = out_data_ptr + 4;
+	int dat_len = compute_len(p_len);
+	unsigned int total = dat_len + 8;
+	HAL_UART_Transmit(&huart1,(uint8_t*)out_data_ptr,total,0xffff);
+}
+
 void put_no_data_into_out_buffer(uint8_t type1_value, uint8_t type2_value){
 	osMutexAcquire(OutMutexHandle, osWaitForever);
 
@@ -2792,7 +2818,7 @@ void StartMainRecvTask(void *argument)
 			}
 		}
 
-		UsbReportValue();
+		//UsbReportValue();
 
 		if (g_angle_report_flag == 0x01){
 			g_angle_report_flag = 0x00;
@@ -2820,12 +2846,14 @@ void StartMainRecvTask(void *argument)
 
 		if (g_key_1_report_flag == 0x01){
 			g_key_1_report_flag = 0x00;
-			put_byte_into_out_buffer(0x05, 0x01, g_key_1_value);	//Key 1
+			//put_byte_into_out_buffer(0x05, 0x01, g_key_1_value);	//Key 1
+			send_byte_to_uart1(0x05, 0x01, g_key_1_value);
 		}
 
 		if (g_key_2_report_flag == 0x01){
 			g_key_2_report_flag = 0x00;
-			put_byte_into_out_buffer(0x05, 0x02, g_key_2_value);	//Key 2
+			//put_byte_into_out_buffer(0x05, 0x02, g_key_2_value);	//Key 2
+			send_byte_to_uart1(0x05, 0x02, g_key_2_value);
 		}
 
 		if (g_exit_idle_report_flag == 0x01){
