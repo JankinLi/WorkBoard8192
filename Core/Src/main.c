@@ -756,7 +756,21 @@ uint8_t g_angle_adc_flag = 0x00;
 uint32_t g_angle_adc_start = 0;
 uint32_t g_angle_detect_flag = 0;
 
+
+// USB Report
+uint32_t g_usb_update_start = 0;
+
 void UsbReportValue(){
+	uint32_t tick;
+	tick = osKernelGetSysTimerCount();
+	uint32_t diff = tick - g_usb_update_start;
+	uint32_t freq = osKernelGetSysTimerFreq();
+	uint32_t timeout_value = 1.0 * freq;
+	if (diff < timeout_value){
+		return;
+	}
+
+	g_usb_update_start = osKernelGetSysTimerCount();
 	uint8_t buf[3]={0,0,0};
 	uint8_t report = 0;
 
@@ -2779,6 +2793,8 @@ void StartMainRecvTask(void *argument)
 	g_wait_down_board_start = osKernelGetSysTimerCount();
 	HAL_UART_Transmit(&huart4,(uint8_t*)g_down_borad_init_data_ptr,0x08,0xffff);
 
+	g_usb_update_start = osKernelGetSysTimerCount();
+
 	/* Infinite loop */
 	for(;;)
 	{
@@ -2818,7 +2834,7 @@ void StartMainRecvTask(void *argument)
 			}
 		}
 
-		//UsbReportValue();
+		UsbReportValue();
 
 		if (g_angle_report_flag == 0x01){
 			g_angle_report_flag = 0x00;
