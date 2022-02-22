@@ -765,7 +765,7 @@ void UsbReportValue(){
 	tick = osKernelGetSysTimerCount();
 	uint32_t diff = tick - g_usb_update_start;
 	uint32_t freq = osKernelGetSysTimerFreq();
-	uint32_t timeout_value = 0.3 * freq;
+	uint32_t timeout_value = 1.0 * freq;
 	if (diff < timeout_value){
 		return;
 	}
@@ -781,10 +781,10 @@ void UsbReportValue(){
 		}
 	}
 	if (g_key_2_old_value != g_key_2_value){
-		report = 1;
 		if (g_key_2_value == 0x01){
 			buf[0] += 2;
 		}
+		report = 1;
 	}
 
 	if (g_angle_detect_old_value != g_angle_detect_value){
@@ -2847,12 +2847,12 @@ void StartMainRecvTask(void *argument)
 
 		if (g_human_rader_1_report_flag == 0x01){
 			g_human_rader_1_report_flag = 0x00;
-			put_byte_into_out_buffer(0x03, 0x01, g_human_rader_1_report_value); //human rader 1
+			put_byte_into_out_buffer(0x03, 0x01, g_human_rader_1_report_value); //human radar 1
 		}
 
 		if (g_human_rader_2_report_flag == 0x01){
-			g_human_rader_2_report_flag = 0x02;
-			put_byte_into_out_buffer(0x03, 0x02, g_human_rader_2_report_value); //human rader 2
+			g_human_rader_2_report_flag = 0x00;
+			put_byte_into_out_buffer(0x03, 0x02, g_human_rader_2_report_value); //human radar 2
 		}
 
 		if (g_hall_detect_report_flag == 0x01){
