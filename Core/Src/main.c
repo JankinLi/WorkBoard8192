@@ -765,7 +765,7 @@ void UsbReportValue(){
 	tick = osKernelGetSysTimerCount();
 	uint32_t diff = tick - g_usb_update_start;
 	uint32_t freq = osKernelGetSysTimerFreq();
-	uint32_t timeout_value = 1.0 * freq;
+	uint32_t timeout_value = 0.3 * freq;
 	if (diff < timeout_value){
 		return;
 	}
