@@ -963,23 +963,23 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) {
 		}
 	}
 	else if(GPIO_Pin == GPIO_PIN_4){  //KEY1_DET //PA4
-		if (HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_4) == GPIO_PIN_SET){
+		if (HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_4) == GPIO_PIN_RESET){
 			g_key_1_old_value = g_key_1_value;
 			g_key_1_value = 0x01;
 			g_key_1_report_flag = 0x01;
 		}
-		else if (HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_4) == GPIO_PIN_RESET){
+		else if (HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_4) == GPIO_PIN_SET){
 			g_key_1_old_value = g_key_1_value;
 			g_key_1_value = 0x02;
 		}
 	}
 	else if(GPIO_Pin == GPIO_PIN_2){  //KEY2_DET //PB2
-		if (HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_2) == GPIO_PIN_SET){
+		if (HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_2) == GPIO_PIN_RESET){
 			g_key_2_old_value = g_key_2_value;
 			g_key_2_value = 0x01;
 			g_key_2_report_flag = 0x01;
 		}
-		else if (HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_2) == GPIO_PIN_RESET){
+		else if (HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_2) == GPIO_PIN_SET){
 			g_key_2_old_value = g_key_2_value;
 			g_key_2_value = 0x02;
 		}
