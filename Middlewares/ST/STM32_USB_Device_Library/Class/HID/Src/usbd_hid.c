@@ -149,7 +149,7 @@ __ALIGN_BEGIN static uint8_t USBD_HID_CfgFSDesc[USB_HID_CONFIG_DESC_SIZ] __ALIGN
   0x01,                                               /* bNumEndpoints */
   0x03,                                               /* bInterfaceClass: HID */
   0x01,                                               /* bInterfaceSubClass : 1=BOOT, 0=no boot */
-  0x02,                                               /* nInterfaceProtocol : 0=none, 1=keyboard, 2=mouse */
+  0x00,                                               /* nInterfaceProtocol : 0=none, 1=keyboard, 2=mouse */
   0,                                                  /* iInterface: Index of string descriptor */
   /******************** Descriptor of Joystick Mouse HID ********************/
   /* 18 */
@@ -201,7 +201,7 @@ __ALIGN_BEGIN static uint8_t USBD_HID_CfgHSDesc[USB_HID_CONFIG_DESC_SIZ] __ALIGN
   0x01,                                               /* bNumEndpoints */
   0x03,                                               /* bInterfaceClass: HID */
   0x01,                                               /* bInterfaceSubClass : 1=BOOT, 0=no boot */
-  0x02,                                               /* nInterfaceProtocol : 0=none, 1=keyboard, 2=mouse */
+  0x00,                                               /* nInterfaceProtocol : 0=none, 1=keyboard, 2=mouse */
   0,                                                  /* iInterface: Index of string descriptor */
   /******************** Descriptor of Joystick Mouse HID ********************/
   /* 18 */
@@ -253,7 +253,7 @@ __ALIGN_BEGIN static uint8_t USBD_HID_OtherSpeedCfgDesc[USB_HID_CONFIG_DESC_SIZ]
   0x01,                                               /* bNumEndpoints */
   0x03,                                               /* bInterfaceClass: HID */
   0x01,                                               /* bInterfaceSubClass : 1=BOOT, 0=no boot */
-  0x02,                                               /* nInterfaceProtocol : 0=none, 1=keyboard, 2=mouse */
+  0x00,                                               /* nInterfaceProtocol : 0=none, 1=keyboard, 2=mouse */
   0,                                                  /* iInterface: Index of string descriptor */
   /******************** Descriptor of Joystick Mouse HID ********************/
   /* 18 */
@@ -323,12 +323,12 @@ __ALIGN_BEGIN static uint8_t HID_MOUSE_ReportDesc[HID_MOUSE_REPORT_DESC_SIZE] __
 
   0x15,   0x00, // LOGICAL_MINIMUM (0)
   0x25,   0x01, // LOGICAL_MAXIMUM (1)
-  0x95,   0x03, // REPORT_COUNT (3)
+  0x95,   0x02, // REPORT_COUNT (2)
   0x75,   0x01, // REPORT_SIZE (1)
 
   0x81,   0x02, // INPUT (Data,Var,Abs)
   0x95,   0x01, // REPORT_COUNT (1)
-  0x75,   0x05, // REPORT_SIZE (5)
+  0x75,   0x06, // REPORT_SIZE (6)
   0x81,   0x07, // INPUT (Cnst,Var,Rel)
 
   0x05,   0x01, // USAGE_PAGE (Generic Desktop)
