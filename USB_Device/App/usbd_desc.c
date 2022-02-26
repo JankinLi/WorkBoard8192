@@ -65,7 +65,7 @@
 #define USBD_VID     1155
 #define USBD_LANGID_STRING     1033
 #define USBD_MANUFACTURER_STRING     "Know"
-#define USBD_PID     22315
+#define USBD_PID     22316
 #define USBD_PRODUCT_STRING     "0064"
 #define USBD_CONFIGURATION_STRING     "HID Config"
 #define USBD_INTERFACE_STRING     "HID Interface"
