@@ -66,7 +66,7 @@ osThreadId_t MainRecvTaskHandle;
 const osThreadAttr_t MainRecvTask_attributes = {
   .name = "MainRecvTask",
   .priority = (osPriority_t) osPriorityNormal,
-  .stack_size = 128 * 4
+  .stack_size = 512 * 4
 };
 /* Definitions for WorkTask */
 osThreadId_t WorkTaskHandle;
@@ -757,18 +757,44 @@ uint32_t g_angle_adc_start = 0;
 uint32_t g_angle_detect_flag = 0;
 
 
+//test code
+uint8_t g_start_test_code = 0;
+
+void UpdateTestReport(){
+	if (g_start_test_code == 0){
+		return;
+	}
+
+	if (g_key_2_report_flag == 0){
+		g_key_2_report_flag = 0x01;
+		g_key_2_old_value = g_key_2_value;
+		if (g_key_2_value == 0x01){
+			g_key_2_value = 0x02;
+		}
+		else{
+			g_key_2_value = 0x01;
+		}
+	}
+}
+
 // USB Report
 uint32_t g_usb_update_start = 0;
-uint8_t g_usb_report_buffer[4][3];
-uint8_t g_usb_report_index = 0;
+//uint8_t g_usb_report_buffer[4][3];
+//uint8_t g_usb_report_index = 0;
+
+//__attribute__((aligned(4))) volatile uint8_t g_usb_report_buffer[4];
+
+uint8_t g_usb_report_buffer[3];
 
 uint8_t *get_usb_report_buffer(){
-	uint8_t *p = g_usb_report_buffer[g_usb_report_index];
-	g_usb_report_index++;
-	if (g_usb_report_index >= 4){
-		g_usb_report_index = 0;
-	}
-	return p;
+//	uint8_t *p = g_usb_report_buffer[g_usb_report_index];
+//	g_usb_report_index++;
+//	if (g_usb_report_index >= 4){
+//		g_usb_report_index = 0;
+//	}
+//	return p;
+
+	return (uint8_t *)g_usb_report_buffer;
 }
 
 void UsbReportValue(){
@@ -836,7 +862,8 @@ void UsbReportValue(){
 	}
 
 	if (report == 1){
-		USBD_HID_SendReport (&hUsbDeviceFS, buf, 3);
+		USBD_HID_SendReport(&hUsbDeviceFS, buf, 3);
+		g_key_2_report_flag = 0;
 	}
 }
 
@@ -1873,6 +1900,7 @@ int main(void)
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
   MX_DMA_Init();
+  MX_USB_Device_Init();
   MX_ADC1_Init();
   MX_ADC2_Init();
   MX_UART4_Init();
@@ -1883,7 +1911,6 @@ int main(void)
   MX_TIM3_Init();
   MX_TIM8_Init();
   MX_TIM17_Init();
-  MX_USB_Device_Init();
   /* USER CODE BEGIN 2 */
 
   memset_main_buffer();
@@ -2859,6 +2886,7 @@ void StartMainRecvTask(void *argument)
 			}
 		}
 
+		UpdateTestReport();
 		UsbReportValue();
 
 		if (g_angle_report_flag == 0x01){
@@ -2940,7 +2968,12 @@ void StartWorkTask(void *argument)
 		osStatus_t status = osMessageQueueGet(MainRecvQueueHandle, &pos, NULL, 0U);
 		if (status == osOK) {
 			if (pos < 0 || pos >= MAIN_BUFFER_COUNT){
-				PutErrorCode(ErrorQueueHandle, 0x07);
+				if (pos >= MAIN_BUFFER_COUNT){
+					PutErrorCode(ErrorQueueHandle, 0x0D);
+				}
+				else{
+					PutErrorCode(ErrorQueueHandle, 0x0C);
+				}
 			}
 			else{
 				char* data_ptr = main_data_buffer[pos];
@@ -3344,6 +3377,9 @@ void StartWorkTask(void *argument)
 					if(data_ptr[1] == 0x01 ){
 						g_idle_mode = 0;  // work mode
 						put_no_data_into_out_buffer(0x010, 0x02);
+						if (g_start_test_code == 0){
+							g_start_test_code = 1;
+						}
 					}
 				}
 				else if(data_ptr[0] == 0x11){
@@ -3387,7 +3423,7 @@ void StartOutTask(void *argument)
 		osStatus_t status = osMessageQueueGet(MainOutQueueHandle, &pos, NULL, 0U);
 		if (status == osOK) {
 			if (pos == -1){
-				PutErrorCode(ErrorQueueHandle, 0x07);
+				PutErrorCode(ErrorQueueHandle, 0x0A);
 			}
 			else{
 				char* out_data_ptr = main_out_buffer[pos];
@@ -3452,7 +3488,12 @@ void StartDownBoardTask(void *argument)
 		osStatus_t status = osMessageQueueGet(DownBoardQueueHandle, &pos, NULL, 0U);
 		if (status == osOK) {
 			if (pos < 0 || pos >= DOWN_BUFFER_COUNT){
-				PutErrorCode(ErrorQueueHandle, 0x07);
+				if (pos < 0){
+					PutErrorCode(ErrorQueueHandle, 0x07);
+				}
+				if ( pos >= DOWN_BUFFER_COUNT){
+					PutErrorCode(ErrorQueueHandle, 0x0B);
+				}
 			}
 			else{
 				char* down_data_ptr = down_data_buffer[pos];
