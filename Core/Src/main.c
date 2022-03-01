@@ -758,42 +758,31 @@ uint32_t g_angle_detect_flag = 0;
 
 
 //test code
-uint8_t g_start_test_code = 0;
-
-void UpdateTestReport(){
-	if (g_start_test_code == 0){
-		return;
-	}
-
-	if (g_key_2_report_flag == 0){
-		g_key_2_report_flag = 0x01;
-		g_key_2_old_value = g_key_2_value;
-		if (g_key_2_value == 0x01){
-			g_key_2_value = 0x02;
-		}
-		else{
-			g_key_2_value = 0x01;
-		}
-	}
-}
+//uint8_t g_start_test_code = 0;
+//
+//void UpdateTestReport(){
+//	if (g_start_test_code == 0){
+//		return;
+//	}
+//
+//	if (g_key_2_report_flag == 0){
+//		g_key_2_report_flag = 0x01;
+//		g_key_2_old_value = g_key_2_value;
+//		if (g_key_2_value == 0x01){
+//			g_key_2_value = 0x02;
+//		}
+//		else{
+//			g_key_2_value = 0x01;
+//		}
+//	}
+//}
 
 // USB Report
 uint32_t g_usb_update_start = 0;
-//uint8_t g_usb_report_buffer[4][3];
-//uint8_t g_usb_report_index = 0;
-
-//__attribute__((aligned(4))) volatile uint8_t g_usb_report_buffer[4];
 
 uint8_t g_usb_report_buffer[3];
 
 uint8_t *get_usb_report_buffer(){
-//	uint8_t *p = g_usb_report_buffer[g_usb_report_index];
-//	g_usb_report_index++;
-//	if (g_usb_report_index >= 4){
-//		g_usb_report_index = 0;
-//	}
-//	return p;
-
 	return (uint8_t *)g_usb_report_buffer;
 }
 
@@ -802,7 +791,7 @@ void UsbReportValue(){
 	tick = osKernelGetSysTimerCount();
 	uint32_t diff = tick - g_usb_update_start;
 	uint32_t freq = osKernelGetSysTimerFreq();
-	uint32_t timeout_value = 0.5 * freq;
+	uint32_t timeout_value = 0.2 * freq;
 	if (diff < timeout_value){
 		return;
 	}
@@ -812,13 +801,11 @@ void UsbReportValue(){
 	if (g_key_1_report_flag == 0x01){
 		g_key_1_report_flag = 0x00;
 		put_byte_into_out_buffer(0x05, 0x01, 0x01);	//Key 1
-		//send_byte_to_uart1(0x05, 0x01, 0x01);
 	}
 
 	if (g_key_2_report_flag == 0x01){
 		g_key_2_report_flag = 0x00;
 		put_byte_into_out_buffer(0x05, 0x02, 0x01);	//Key 2
-		//send_byte_to_uart1(0x05, 0x02, 0x01);
 	}
 
 	uint8_t * buf = get_usb_report_buffer();
@@ -2886,7 +2873,7 @@ void StartMainRecvTask(void *argument)
 			}
 		}
 
-		UpdateTestReport();
+		//UpdateTestReport();
 		UsbReportValue();
 
 		if (g_angle_report_flag == 0x01){
@@ -3377,9 +3364,6 @@ void StartWorkTask(void *argument)
 					if(data_ptr[1] == 0x01 ){
 						g_idle_mode = 0;  // work mode
 						put_no_data_into_out_buffer(0x010, 0x02);
-						if (g_start_test_code == 0){
-							g_start_test_code = 1;
-						}
 					}
 				}
 				else if(data_ptr[0] == 0x11){
