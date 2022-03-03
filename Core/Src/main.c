@@ -240,18 +240,25 @@ void set_main_head_it(){
 	memset(main_head_buf, 0, sizeof(main_head_buf));
 	main_head_flag = 1;
 	main_body_flag = 0;
-	HAL_UART_Receive_IT(&huart1,(uint8_t*)main_head_buf,8);  //main communication
+	HAL_UART_Receive_IT(&huart1,(uint8_t*)main_head_buf,1);  //main communication
 }
 
-int analyze_main_head(){
+int analyze_main_head_1(){
 	if (main_head_buf[0] != 0x4D){
 		return -1;
 	}
 
+	return 0;
+}
+
+int analyze_main_head_2(){
 	if (main_head_buf[1] != 0x43){
 		return -1;
 	}
+	return 0;
+}
 
+int compute_main_length(){
 	char *len_ptr = main_head_buf + 4;
 	int * len_p = (int*)len_ptr;
 	int value = *len_p;
@@ -266,12 +273,32 @@ void move_next_main_write_index(){
 }
 
 void receive_main_head(){
-	int data_len = analyze_main_head();
+	int data_len = analyze_main_head_1();
 	if (data_len == -1){
 		PutErrorCode(ErrorQueueHandle, 0x01);
 		set_main_head_it();
+		return;
 	}
-	else if (data_len == 0){
+	main_head_flag = 2;
+	main_body_flag = 0;
+	HAL_UART_Receive_IT(&huart1,(uint8_t*)(main_head_buf+1), 1);  //main communication
+}
+
+void receive_main_head_2(){
+	int data_len = analyze_main_head_2();
+	if (data_len == -1){
+		PutErrorCode(ErrorQueueHandle, 0x01);
+		set_main_head_it();
+		return;
+	}
+	main_head_flag = 3;
+	main_body_flag = 0;
+	HAL_UART_Receive_IT(&huart1,(uint8_t*)(main_head_buf+2), 6);  //main communication
+}
+
+void receive_main_head_len_part(){
+	int data_len = compute_main_length();
+	if (data_len == 0){
 		uint32_t ret = osMessageQueueGetSpace(MainRecvQueueHandle);
 		if (ret ==0){
 			PutErrorCode(ErrorQueueHandle, 0x06);
@@ -437,6 +464,14 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 			return;
 		}
 
+		if (3 == main_head_flag){
+			receive_main_head_len_part();
+			return;
+		}
+		if (2 == main_head_flag){
+			receive_main_head_2();
+			return;
+		}
 		if (1 == main_head_flag){
 			receive_main_head();
 			return;
